@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter/services.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -19,6 +23,7 @@ class _MapScreenState extends State<MapScreen> {
   final LatLng _mariborLatLng = const LatLng(46.5547, 15.6459);
   final Set<Marker> _markers = {};
   String _filter = 'all';
+  double _avgAllRatings = 0;
   bool _showLegend = false;
   final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -26,6 +31,7 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _setInitialLocation();
+    _loadStreetRatings();
   }
 
   Future<void> _setInitialLocation() async {
@@ -54,6 +60,162 @@ class _MapScreenState extends State<MapScreen> {
         _currentPosition = _mariborLatLng;
       });
     }
+  }
+
+  Future<void> _loadStreetRatings() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('street_ratings').get();
+
+    final Map<String, List<DocumentSnapshot>> grouped = {};
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final lat = data['latitude'];
+      final lng = data['longitude'];
+      final key = '$lat-$lng';
+      grouped.putIfAbsent(key, () => []).add(doc);
+    }
+
+    double totalSum = 0;
+    int totalCount = 0;
+
+    final Set<Marker> newMarkers =
+        grouped.entries
+            .map((entry) {
+              final docs = entry.value;
+              final data = docs.first.data() as Map<String, dynamic>;
+              final lat = data['latitude'];
+              final lng = data['longitude'];
+              final averageRating =
+                  docs
+                      .map((d) => (d['rating'] as num))
+                      .reduce((a, b) => a + b) /
+                  docs.length;
+              final comment = docs.last['comment'] ?? '';
+
+              totalSum += averageRating;
+              totalCount++;
+
+              if (_filter == 'safe' && averageRating < 7) return null;
+              if (_filter == 'dangerous' && averageRating >= 7) return null;
+
+              final color =
+                  averageRating >= 7
+                      ? BitmapDescriptor.hueGreen
+                      : averageRating >= 4
+                      ? BitmapDescriptor.hueYellow
+                      : BitmapDescriptor.hueRed;
+
+              return Marker(
+                markerId: MarkerId(entry.key),
+                position: LatLng(lat, lng),
+                infoWindow: InfoWindow(
+                  title: 'Povp. ocena: ${averageRating.toStringAsFixed(1)}',
+                  snippet: comment,
+                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(color),
+              );
+            })
+            .whereType<Marker>()
+            .toSet();
+
+    setState(() {
+      _markers.clear();
+      _markers.addAll(newMarkers);
+      _avgAllRatings = totalCount > 0 ? totalSum / totalCount : 0;
+    });
+  }
+
+  void _changeFilter(String filter) {
+    setState(() {
+      _filter = filter;
+    });
+    _loadStreetRatings();
+  }
+
+  void _openRatingDialog(LatLng latlng) {
+    TextEditingController _controller = TextEditingController();
+    int rating = 5;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Wrap(
+                children: [
+                  Text(
+                    "Ocenite lokacijo",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Varnostna ocena (1–10):",
+                    style: GoogleFonts.poppins(fontSize: 14),
+                  ),
+                  Slider(
+                    value: rating.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    label: rating.toString(),
+                    onChanged:
+                        (value) => setModalState(() => rating = value.toInt()),
+                  ),
+                  TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      labelText: "Komentar (neobvezno)",
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        await FirebaseFirestore.instance
+                            .collection('street_ratings')
+                            .add({
+                              'latitude': latlng.latitude,
+                              'longitude': latlng.longitude,
+                              'rating': rating,
+                              'comment': _controller.text,
+                              'timestamp': Timestamp.now(),
+                              'uid': currentUser?.uid ?? '',
+                            });
+                        _loadStreetRatings();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Hvala za vašo oceno!')),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E7D46),
+                      ),
+                      child: const Text("Shrani"),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
