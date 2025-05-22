@@ -241,6 +241,41 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ],
         ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list, color: Colors.white),
+            onSelected: _changeFilter,
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'all',
+                    child: Text('Vse lokacije'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'safe',
+                    child: Text('Varne lokacije'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'dangerous',
+                    child: Text('Nevarne lokacije'),
+                  ),
+                ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.list_alt, color: Colors.white),
+            tooltip: 'Vse ocene',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllRatingsScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () => setState(() => _showLegend = !_showLegend),
+          ),
+        ],
       ),
       body:
           _currentPosition == null
@@ -263,6 +298,7 @@ class _MapScreenState extends State<MapScreen> {
                     myLocationEnabled: true,
                     myLocationButtonEnabled: false,
                     mapType: _mapType,
+                    onLongPress: _openRatingDialog,
                     markers: _markers,
                   ),
 
@@ -277,6 +313,19 @@ class _MapScreenState extends State<MapScreen> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(blurRadius: 4, color: Colors.black26),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Legenda:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 6),
+                            Text('🟢 Varno (7–10)'),
+                            Text('🟡 Srednje (4–6)'),
+                            Text('🔴 Nevarno (1–3)'),
                           ],
                         ),
                       ),
@@ -327,6 +376,21 @@ class _MapScreenState extends State<MapScreen> {
                           );
                         }
                       },
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(8),
+                      child: Center(
+                        child: Text(
+                          'Povprečna ocena vseh lokacij: ${_avgAllRatings.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
                     ),
                   ),
                 ],
