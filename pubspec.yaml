@@ -1,0 +1,44 @@
+name: google_login_app
+description: "SafeSteps – varna navigacija ponoči."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.3
+  google_sign_in: ^6.2.1
+  cloud_firestore: ^5.6.7  
+  
+
+  # Mapa i lokacija
+  google_maps_flutter: ^2.5.0
+  location: ^5.0.3
+  geocoding: ^2.1.0
+  fluttertoast: ^8.2.2
+ 
+
+
+
+  # Ostalo
+  url_launcher: ^6.2.5
+  
+  google_fonts: ^6.1.0
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
