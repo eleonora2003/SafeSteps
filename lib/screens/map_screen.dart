@@ -63,6 +63,38 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _sendEmergencyMessage() async {
+    try {
+      final locData = await _location.getLocation();
+      final lat = locData.latitude;
+      final lng = locData.longitude;
+
+      final Uri emailUri = Uri(
+        scheme: 'mailto',
+        path: 'teodorakrunic2004@gmail.com', // možeš staviti bilo koji email
+        query: Uri.encodeFull(
+          'subject=🚨 SOS Pomoč&body=Hitno! Moja trenutna lokacija je: https://maps.google.com/?q=$lat,$lng',
+        ),
+      );
+
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+      } else {
+        Fluttertoast.showToast(
+          msg: "❌ Ne može se otvoriti email klijent.",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: "❌ Došlo je do greške pri slanju SOS poruke.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+  }
+
   Future<void> _loadStreetRatings() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('street_ratings').get();
@@ -345,6 +377,24 @@ class _MapScreenState extends State<MapScreen> {
                             offset: Offset(0, 3),
                           ),
                         ],
+                      ),
+                      child: TextButton.icon(
+                        onPressed: _sendEmergencyMessage,
+
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        icon: const Icon(Icons.sos, color: Colors.white),
+                        label: const Text(
+                          'SOS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),
