@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'auth_service.dart';
+import 'map_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   final AuthService _authService = AuthService();
+
+  LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
