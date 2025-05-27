@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
+import 'package:location/location.dart' as loc;
+import 'package:geocoding/geocoding.dart' as geo;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'all_ratings_screen.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter/services.dart';
+import 'all_ratings_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -17,16 +17,22 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // Map controllers and state
   late GoogleMapController mapController;
-  final Location _location = Location();
+  final loc.Location _location = loc.Location();
   LatLng? _currentPosition;
   MapType _mapType = MapType.normal;
   final LatLng _mariborLatLng = const LatLng(46.5547, 15.6459);
   final Set<Marker> _markers = {};
+
+  // Filter and rating state
   String _filter = 'all';
   double _avgAllRatings = 0;
   bool _showLegend = false;
+
+  // User and UI controllers
   final currentUser = FirebaseAuth.instance.currentUser;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -37,8 +43,8 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _setInitialLocation() async {
     final hasPermission = await _location.hasPermission();
-    if (hasPermission == PermissionStatus.denied ||
-        hasPermission == PermissionStatus.deniedForever) {
+    if (hasPermission == loc.PermissionStatus.denied ||
+        hasPermission == loc.PermissionStatus.deniedForever) {
       await _location.requestPermission();
     }
 
@@ -71,7 +77,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final Uri emailUri = Uri(
         scheme: 'mailto',
-        path: 'teodorakrunic2004@gmail.com', // možeš staviti bilo koji email
+        path: 'teodorakrunic2004@gmail.com',
         query: Uri.encodeFull(
           'subject=🚨 SOS Pomoč&body=Hitno! Moja trenutna lokacija je: https://maps.google.com/?q=$lat,$lng',
         ),
@@ -80,18 +86,43 @@ class _MapScreenState extends State<MapScreen> {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri, mode: LaunchMode.externalApplication);
       } else {
-        Fluttertoast.showToast(
-          msg: "❌ Ne može se otvoriti email klijent.",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-        );
+        _showToast("❌ Ne može se otvoriti email klijent.");
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: "❌ Došlo je do greške pri slanju SOS poruke.",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-      );
+      _showToast("❌ Došlo je do greške pri slanju SOS poruke.");
+    }
+  }
+
+  Future<void> _searchAndNavigate() async {
+    String query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    try {
+      List<geo.Location> locations = await geo.locationFromAddress(query);
+
+      if (locations.isNotEmpty) {
+        final loc = locations.first;
+        final target = LatLng(loc.latitude, loc.longitude);
+
+        mapController.animateCamera(CameraUpdate.newLatLngZoom(target, 16));
+
+        setState(() {
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('search_location'),
+              position: target,
+              infoWindow: InfoWindow(title: 'Iskano mesto', snippet: query),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure,
+              ),
+            ),
+          );
+        });
+      } else {
+        _showToast('Naslov ni bil najden.');
+      }
+    } catch (e) {
+      _showToast('Napaka pri iskanju naslova.');
     }
   }
 
@@ -100,6 +131,8 @@ class _MapScreenState extends State<MapScreen> {
         await FirebaseFirestore.instance.collection('street_ratings').get();
 
     final Map<String, List<DocumentSnapshot>> grouped = {};
+    double totalSum = 0;
+    int totalCount = 0;
 
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
@@ -108,9 +141,6 @@ class _MapScreenState extends State<MapScreen> {
       final key = '$lat-$lng';
       grouped.putIfAbsent(key, () => []).add(doc);
     }
-
-    double totalSum = 0;
-    int totalCount = 0;
 
     final Set<Marker> newMarkers =
         grouped.entries
@@ -251,6 +281,34 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  Future<void> _saveRating(LatLng latlng, int rating, String comment) async {
+    try {
+      await FirebaseFirestore.instance.collection('street_ratings').add({
+        'latitude': latlng.latitude,
+        'longitude': latlng.longitude,
+        'rating': rating,
+        'comment': comment,
+        'timestamp': Timestamp.now(),
+        'uid': currentUser?.uid ?? '',
+      });
+
+      _loadStreetRatings();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Hvala za vašo oceno!')));
+    } catch (e) {
+      _showToast('Napaka pri shranjevanju ocene.');
+    }
+  }
+
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -297,12 +355,11 @@ class _MapScreenState extends State<MapScreen> {
           IconButton(
             icon: const Icon(Icons.list_alt, color: Colors.white),
             tooltip: 'Vse ocene',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AllRatingsScreen()),
-              );
-            },
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AllRatingsScreen()),
+                ),
           ),
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
@@ -335,9 +392,44 @@ class _MapScreenState extends State<MapScreen> {
                     markers: _markers,
                   ),
 
+                  // Search bar
+                  Positioned(
+                    top: 40,
+                    left: 15,
+                    right: 15,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(blurRadius: 4, color: Colors.black26),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: const InputDecoration(
+                                hintText: 'Vnesite naslov ali ulico',
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: _searchAndNavigate,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Legend
                   if (_showLegend)
                     Positioned(
-                      top: 90,
+                      top: 60,
                       right: 10,
                       child: Container(
                         padding: const EdgeInsets.all(10),
@@ -363,6 +455,8 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                     ),
+
+                  // SOS Button
                   Positioned(
                     bottom: 30,
                     left: 20,
@@ -374,13 +468,12 @@ class _MapScreenState extends State<MapScreen> {
                           BoxShadow(
                             color: Colors.black26,
                             blurRadius: 6,
-                            offset: Offset(0, 3),
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
                       child: TextButton.icon(
                         onPressed: _sendEmergencyMessage,
-
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -398,6 +491,8 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                   ),
+
+                  // Map type toggle
                   Positioned(
                     bottom: 100,
                     right: 20,
@@ -414,6 +509,8 @@ class _MapScreenState extends State<MapScreen> {
                       },
                     ),
                   ),
+
+                  // My location button
                   Positioned(
                     bottom: 160,
                     right: 20,
@@ -429,6 +526,8 @@ class _MapScreenState extends State<MapScreen> {
                       },
                     ),
                   ),
+
+                  // Average rating display
                   Positioned(
                     top: 0,
                     left: 0,
