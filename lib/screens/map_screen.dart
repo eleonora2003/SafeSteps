@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'all_ratings_screen.dart';
+import 'ratings_pie_chart_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -323,7 +324,7 @@ class _MapScreenState extends State<MapScreen> {
             const Icon(Icons.shield_rounded, color: Colors.white, size: 26),
             const SizedBox(width: 10),
             Text(
-              'SafeSteps Mapa',
+              'SafeSteps',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 20,
@@ -364,6 +365,21 @@ class _MapScreenState extends State<MapScreen> {
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
             onPressed: () => setState(() => _showLegend = !_showLegend),
+          ),
+          SizedBox(
+            width: 42, // standardna širina gumba
+            child: IconButton(
+              icon: const Icon(Icons.pie_chart, color: Colors.white),
+              tooltip: 'Graf ocen',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const RatingsPieChartScreen(),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
