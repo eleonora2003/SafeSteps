@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart';
 import 'package:location/location.dart' as loc;
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'all_ratings_screen.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter/services.dart';
+import 'maps.dart';
 import 'ratings_pie_chart_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -18,20 +21,16 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Map controllers and state
   late GoogleMapController mapController;
+
   final loc.Location _location = loc.Location();
   LatLng? _currentPosition;
   MapType _mapType = MapType.normal;
   final LatLng _mariborLatLng = const LatLng(46.5547, 15.6459);
   final Set<Marker> _markers = {};
-
-  // Filter and rating state
   String _filter = 'all';
   double _avgAllRatings = 0;
   bool _showLegend = false;
-
-  // User and UI controllers
   final currentUser = FirebaseAuth.instance.currentUser;
   final TextEditingController _searchController = TextEditingController();
 
@@ -317,7 +316,8 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E7D46),
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
+        titleSpacing: 20,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -334,51 +334,67 @@ class _MapScreenState extends State<MapScreen> {
           ],
         ),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onSelected: _changeFilter,
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'all',
-                    child: Text('Vse lokacije'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'safe',
-                    child: Text('Varne lokacije'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'dangerous',
-                    child: Text('Nevarne lokacije'),
-                  ),
-                ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.list_alt, color: Colors.white),
-            tooltip: 'Vse ocene',
-            onPressed:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AllRatingsScreen()),
+          Padding(
+            padding: const EdgeInsets.only(
+              right: 10,
+            ), // 10 px razmik od desnega roba
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.filter_list, color: Colors.white),
+                  onSelected: _changeFilter,
+                  itemBuilder:
+                      (context) => [
+                        const PopupMenuItem(
+                          value: 'all',
+                          child: Text('Vse lokacije'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'safe',
+                          child: Text('Varne lokacije'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'dangerous',
+                          child: Text('Nevarne lokacije'),
+                        ),
+                      ],
                 ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () => setState(() => _showLegend = !_showLegend),
-          ),
-          SizedBox(
-            width: 42, // standardna širina gumba
-            child: IconButton(
-              icon: const Icon(Icons.pie_chart, color: Colors.white),
-              tooltip: 'Graf ocen',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RatingsPieChartScreen(),
+                IconButton(
+                  icon: const Icon(Icons.list_alt, color: Colors.white),
+                  tooltip: 'Vse ocene',
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AllRatingsScreen(),
+                        ),
+                      ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline, color: Colors.white),
+                  onPressed: () => setState(() => _showLegend = !_showLegend),
+                ),
+                SizedBox(
+                  width: 42, // standardna širina gumba
+                  child: IconButton(
+                    icon: const Icon(Icons.pie_chart, color: Colors.white),
+                    tooltip: 'Graf ocen',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RatingsPieChartScreen(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                  // IconButton(
+                  //   icon: const Icon(Icons.info_outline, color: Colors.white),
+                  //   onPressed: () => setState(() => _showLegend = !_showLegend),
+                  // ),
+                ),
+              ],
             ),
           ),
         ],
@@ -407,7 +423,6 @@ class _MapScreenState extends State<MapScreen> {
                     onLongPress: _openRatingDialog,
                     markers: _markers,
                   ),
-
                   // Search bar
                   Positioned(
                     top: 40,
@@ -442,7 +457,6 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
 
-                  // Legend
                   if (_showLegend)
                     Positioned(
                       top: 60,
@@ -471,8 +485,6 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                     ),
-
-                  // SOS Button
                   Positioned(
                     bottom: 30,
                     left: 20,
@@ -490,6 +502,7 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       child: TextButton.icon(
                         onPressed: _sendEmergencyMessage,
+
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -507,8 +520,6 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ),
                   ),
-
-                  // Map type toggle
                   Positioned(
                     bottom: 100,
                     right: 20,
@@ -525,8 +536,6 @@ class _MapScreenState extends State<MapScreen> {
                       },
                     ),
                   ),
-
-                  // My location button
                   Positioned(
                     bottom: 160,
                     right: 20,
@@ -542,8 +551,21 @@ class _MapScreenState extends State<MapScreen> {
                       },
                     ),
                   ),
+                  Positioned(
+                    bottom: 220,
+                    right: 20,
+                    child: FloatingActionButton(
+                      backgroundColor: const Color(0xFF1E7D46),
+                      child: const Icon(Icons.directions, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => MapScreenTask()),
+                        );
+                      },
+                    ),
+                  ),
 
-                  // Average rating display
                   Positioned(
                     top: 0,
                     left: 0,
