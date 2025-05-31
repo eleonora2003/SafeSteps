@@ -325,7 +325,6 @@ class _MapScreenState extends State<MapScreen> {
             const SizedBox(width: 10),
             Text(
               'SafeSteps',
-              'SafeSteps',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 20,
