@@ -321,13 +321,13 @@ class _MapScreenState extends State<MapScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.shield_rounded, color: Colors.white, size: 26),
+            const Icon(Icons.shield_rounded, color: Colors.white, size: 22),
             const SizedBox(width: 10),
             Text(
               'SafeSteps',
               style: GoogleFonts.poppins(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -342,7 +342,11 @@ class _MapScreenState extends State<MapScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.filter_list, color: Colors.white),
+                  icon: const Icon(
+                    Icons.filter_list,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   onSelected: _changeFilter,
                   itemBuilder:
                       (context) => [
@@ -361,7 +365,11 @@ class _MapScreenState extends State<MapScreen> {
                       ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.list_alt, color: Colors.white),
+                  icon: const Icon(
+                    Icons.list_alt,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   tooltip: 'Vse ocene',
                   onPressed:
                       () => Navigator.push(
@@ -372,13 +380,21 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.info_outline, color: Colors.white),
+                  icon: const Icon(
+                    Icons.info_outline,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   onPressed: () => setState(() => _showLegend = !_showLegend),
                 ),
                 SizedBox(
                   width: 42, // standardna širina gumba
                   child: IconButton(
-                    icon: const Icon(Icons.pie_chart, color: Colors.white),
+                    icon: const Icon(
+                      Icons.pie_chart,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                     tooltip: 'Graf ocen',
                     onPressed: () {
                       Navigator.push(
@@ -425,7 +441,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   // Search bar
                   Positioned(
-                    top: 40,
+                    top: 20,
                     left: 15,
                     right: 15,
                     child: Container(
@@ -563,22 +579,6 @@ class _MapScreenState extends State<MapScreen> {
                           MaterialPageRoute(builder: (_) => MapScreenTask()),
                         );
                       },
-                    ),
-                  ),
-
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(8),
-                      child: Center(
-                        child: Text(
-                          'Povprečna ocena vseh lokacij: ${_avgAllRatings.toStringAsFixed(2)}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
                     ),
                   ),
                 ],

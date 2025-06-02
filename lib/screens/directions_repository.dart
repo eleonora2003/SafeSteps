@@ -4,6 +4,7 @@ import 'directions_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geocoding/geocoding.dart' as geo;
+import 'osm_repository.dart';
 
 class DirectionsRepository {
   static const String _directionsBaseUrl =
@@ -15,6 +16,7 @@ class DirectionsRepository {
 
   final Dio _dio;
   final PolylinePoints _polylinePoints = PolylinePoints();
+  final OSMRepository _osmRepository = OSMRepository();
 
   DirectionsRepository({Dio? dio}) : _dio = dio ?? Dio();
 
@@ -134,11 +136,36 @@ class DirectionsRepository {
           }
         }
       }
+      //Casovno odvisno ocenjevanje
+      final hour = DateTime.now().hour;
+      final isNightTime = hour > 18 || hour < 6;
+
+      double totalLightingScore = 0;
+      int lightingPoints = 0;
+
+      for (int i = 0; i < routePoints.length; i += 5) {
+        double score = await _osmRepository.getLightingScoreForLocation(
+          LatLng(routePoints[i].latitude, routePoints[i].longitude),
+        );
+
+        // Poudarite pomen osvetlitve ponoči
+        if (isNightTime) {
+          score = score * 1.3; // 30% večji vpliv ponoči
+        }
+
+        totalLightingScore += score.clamp(1.0, 10.0);
+        lightingPoints++;
+      }
 
       final avgTrafficScore =
           segmentCount > 0 ? totalTrafficScore / segmentCount : 5.0;
 
-      return {'traffic': avgTrafficScore, 'segments_analyzed': segmentCount};
+      return {
+        'traffic': avgTrafficScore,
+        'lighting':
+            lightingPoints > 0 ? (totalLightingScore / lightingPoints) : 5.0,
+        'segments_analyzed': segmentCount,
+      };
     } catch (e) {
       print('Error in _getDetailedTrafficData: $e');
       return {'traffic': 5.0, 'segments_analyzed': 0, 'error': e.toString()};

@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'directions_model.dart';
 import 'directions_repository.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MapScreenTask extends StatefulWidget {
   @override
@@ -17,6 +18,7 @@ class _MapScreenState extends State<MapScreenTask> {
   Marker? _destination;
   DirectionsList? _directionsList;
   int _selectedRouteIndex = 0;
+  bool _showLegendPopup = false;
 
   final TextEditingController _originController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
@@ -55,21 +57,33 @@ class _MapScreenState extends State<MapScreenTask> {
     for (int i = 0; i < _directionsList!.routes.length; i++) {
       final route = _directionsList!.routes[i];
       final isSelected = i == _selectedRouteIndex;
-
+      double totalScore = 0;
+      int activeCriteria = 0;
       Color polylineColor;
+      if (_safetyPreference.considerTraffic) {
+        totalScore += route.trafficScore;
+        activeCriteria++;
+      }
+
       if (_safetyPreference.considerLighting) {
-        polylineColor = _getColorForScore(route.lightingScore);
+        totalScore += route.lightingScore;
+        activeCriteria++;
       } else if (_safetyPreference.considerTraffic) {
         polylineColor = _getColorForScore(route.trafficScore);
       } else {
         polylineColor = _getColorForScore(route.userRatingScore);
       }
 
+      final averageScore =
+          activeCriteria > 0 ? totalScore / activeCriteria : 5.0;
       polylines.add(
         Polyline(
           polylineId: PolylineId('route_$i'),
-          color: isSelected ? polylineColor : polylineColor.withOpacity(0.5),
-          width: isSelected ? 6 : 3,
+          color:
+              isSelected
+                  ? _getColorForScore(averageScore)
+                  : _getColorForScore(averageScore).withOpacity(0.5),
+          width: isSelected ? 7 : 2,
           points:
               route.polylinePoints
                   .map((e) => LatLng(e.latitude, e.longitude))
@@ -83,13 +97,13 @@ class _MapScreenState extends State<MapScreenTask> {
   Color _getColorForScore(double score) {
     if (_safetyPreference.considerTraffic) {
       // Posebna logika za promet
-      if (score >= 7.5) return Colors.green;
-      if (score >= 5.0) return Colors.yellow;
+      if (score >= 7.0) return Colors.green;
+      if (score >= 4.0) return Colors.yellow;
       return Colors.red;
     } else {
       // Originalna logika za druge faktorje
-      if (score >= 7.5) return Colors.green;
-      if (score >= 5.0) return Colors.orange;
+      if (score >= 7.0) return Colors.green;
+      if (score >= 4.0) return Colors.yellow;
       return Colors.red;
     }
   }
@@ -227,23 +241,41 @@ class _MapScreenState extends State<MapScreenTask> {
         isExpanded: true,
         items: List.generate(_directionsList!.routes.length, (index) {
           final route = _directionsList!.routes[index];
+
+          double totalScore = 0;
+          int activeCriteria = 0;
           String safetyInfo = '';
 
-          if (_safetyPreference.considerLighting) {
-            safetyInfo +=
-                'Osvetlitev: ${route.lightingScore.toStringAsFixed(1)} ';
-          }
           if (_safetyPreference.considerTraffic) {
-            safetyInfo += 'Promet: ${route.trafficScore.toStringAsFixed(1)} ';
+            totalScore += route.trafficScore;
+            activeCriteria++;
+            safetyInfo += '🚦 ${route.trafficScore.toStringAsFixed(1)} ';
+          }
+
+          if (_safetyPreference.considerLighting) {
+            totalScore += route.lightingScore;
+            activeCriteria++;
+            safetyInfo += '💡 ${route.lightingScore.toStringAsFixed(1)} ';
           }
           if (_safetyPreference.considerUserRatings) {
-            safetyInfo += 'Ocena: ${route.userRatingScore.toStringAsFixed(1)}';
+            safetyInfo += '⭐ ${route.userRatingScore.toStringAsFixed(1)}';
           }
+
+          final averageScore =
+              activeCriteria > 0 ? totalScore / activeCriteria : 5.0;
+          final color = _getColorForScore(averageScore);
 
           return DropdownMenuItem<int>(
             value: index,
-            child: Text(
-              'Pot ${index + 1}: ${route.totalDistance}, ${route.totalDuration}\n$safetyInfo',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pot ${index + 1}: ${route.totalDistance}, ${route.totalDuration}',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                Text(safetyInfo, style: TextStyle(color: color, fontSize: 14)),
+              ],
             ),
           );
         }),
@@ -251,6 +283,120 @@ class _MapScreenState extends State<MapScreenTask> {
           if (value == null) return;
           setState(() => _selectedRouteIndex = value);
         },
+      ),
+    );
+  }
+
+  Widget _buildSafetyLegend() {
+    return Positioned(
+      bottom: 20,
+      left: 10,
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showLegendPopup = !_showLegendPopup;
+          });
+        },
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 300),
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child:
+              _showLegendPopup
+                  ? _buildExpandedLegend()
+                  : _buildCollapsedLegend(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollapsedLegend() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.info_outline, color: Colors.blue),
+        SizedBox(width: 8),
+        Text(
+          'Varnostna lestvica',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpandedLegend() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Varnostna lestvica',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, size: 18),
+              onPressed: () {
+                setState(() {
+                  _showLegendPopup = false;
+                });
+              },
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        _buildLegendItem(Colors.green, '7-10: Varna pot'),
+        _buildLegendItem(Colors.orange, '4-6: Zmerno varna'),
+        _buildLegendItem(Colors.red, '1-3: Nevarna'),
+        SizedBox(height: 8),
+        Text(
+          'Aktivni kriteriji:',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 4),
+        if (_safetyPreference.considerTraffic)
+          _buildLegendItem(Colors.blue, 'Promet 🚦'),
+        if (_safetyPreference.considerLighting)
+          _buildLegendItem(Colors.amber, 'Osvetlitev 💡'),
+        if (_safetyPreference.considerUserRatings)
+          _buildLegendItem(Colors.purple, 'Ocene ⭐'),
+        SizedBox(height: 8),
+        Text(
+          'Tap to close',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          SizedBox(width: 8),
+          Text(text),
+        ],
       ),
     );
   }
@@ -416,10 +562,28 @@ class _MapScreenState extends State<MapScreenTask> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Google Maps - Izbira poti'),
+        backgroundColor: const Color(0xFF1E7D46),
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 20,
+        iconTheme: IconThemeData(color: Colors.white),
+
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'SafeSteps - Izbira poti',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.settings),
+            icon: Icon(Icons.settings, color: Colors.white, size: 22),
             onPressed:
                 () => showDialog(
                   context: context,
@@ -430,6 +594,18 @@ class _MapScreenState extends State<MapScreenTask> {
       ),
       body: Stack(
         children: [
+          GestureDetector(
+            onTap: () {
+              if (_showLegendPopup) {
+                setState(() {
+                  _showLegendPopup = false;
+                });
+              }
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(color: Colors.transparent),
+          ),
+          _buildSafetyLegend(),
           if (_initialCameraPosition == null)
             Center(child: CircularProgressIndicator())
           else
@@ -443,7 +619,7 @@ class _MapScreenState extends State<MapScreenTask> {
               polylines: _buildPolylines(),
               onLongPress: (pos) => _addMarker(pos, _origin == null),
             ),
-
+          _buildSafetyLegend(),
           Positioned(
             top: 10,
             left: 10,

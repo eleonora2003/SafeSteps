@@ -11,6 +11,7 @@ class Directions {
   final double lightingScore;
   final double trafficScore;
   final double userRatingScore;
+  final bool isNight;
 
   const Directions({
     required this.bounds,
@@ -21,6 +22,7 @@ class Directions {
     required this.lightingScore,
     required this.trafficScore,
     required this.userRatingScore,
+    required this.isNight,
   });
 
   factory Directions.fromMap(
@@ -37,6 +39,7 @@ class Directions {
         lightingScore: 5.0,
         trafficScore: 5.0,
         userRatingScore: 5.0,
+        isNight: safetyData['is_night'] ?? false,
       );
     }
 
@@ -66,6 +69,7 @@ class Directions {
       lightingScore: safetyData['lighting'] ?? 5.0,
       trafficScore: safetyData['traffic'] ?? 5.0,
       userRatingScore: safetyData['userRating'] ?? 5.0,
+      isNight: safetyData['is_night'] ?? false,
     );
   }
 }
@@ -106,9 +110,10 @@ class DirectionsList {
     SafetyPreference preference, {
     Map<String, dynamic>? trafficData,
   }) async {
-    final double trafficScore = trafficData?['traffic'];
+    final trafficScore = trafficData?['traffic'] ?? 5.0;
 
-    final lightingScore = 7.5;
+    final lightingScore = trafficData?['lighting'] ?? 5.0;
+
     final userRating = 6.5;
 
     final safetyScore =
