@@ -127,66 +127,72 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _loadStreetRatings() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('street_ratings').get();
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('street_ratings').get();
 
-    final Map<String, List<DocumentSnapshot>> grouped = {};
-    double totalSum = 0;
-    int totalCount = 0;
+      final Map<String, List<DocumentSnapshot>> grouped = {};
+      double totalSum = 0;
+      int totalCount = 0;
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final lat = data['latitude'];
-      final lng = data['longitude'];
-      final key = '$lat-$lng';
-      grouped.putIfAbsent(key, () => []).add(doc);
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        if (data['latitude'] == null || data['longitude'] == null) continue;
+
+        final lat = data['latitude'] as double;
+        final lng = data['longitude'] as double;
+        final key = '$lat-$lng';
+        grouped.putIfAbsent(key, () => []).add(doc);
+      }
+
+      final Set<Marker> newMarkers = {};
+
+      grouped.forEach((key, docs) {
+        final data = docs.first.data() as Map<String, dynamic>;
+        final lat = data['latitude'] as double;
+        final lng = data['longitude'] as double;
+        final averageRating =
+            docs
+                .map((d) => (d['rating'] as num).toDouble())
+                .reduce((a, b) => a + b) /
+            docs.length;
+        final comment = docs.last['comment'] ?? '';
+
+        totalSum += averageRating;
+        totalCount++;
+
+        if (_filter == 'safe' && averageRating < 7) return;
+        if (_filter == 'dangerous' && averageRating >= 7) return;
+
+        final color =
+            averageRating >= 7
+                ? BitmapDescriptor.hueGreen
+                : averageRating >= 4
+                ? BitmapDescriptor.hueYellow
+                : BitmapDescriptor.hueRed;
+
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId(key),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(
+              title: 'Povp. ocena: ${averageRating.toStringAsFixed(1)}',
+              snippet: comment.isNotEmpty ? comment : 'Brez komentarja',
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(color),
+          ),
+        );
+      });
+
+      setState(() {
+        _markers.clear();
+        _markers.addAll(newMarkers);
+        _avgAllRatings = totalCount > 0 ? totalSum / totalCount : 0;
+      });
+    } catch (e) {
+      print('Error loading street ratings: $e');
+      _showToast('Napaka pri nalaganju ocen');
     }
-
-    final Set<Marker> newMarkers =
-        grouped.entries
-            .map((entry) {
-              final docs = entry.value;
-              final data = docs.first.data() as Map<String, dynamic>;
-              final lat = data['latitude'];
-              final lng = data['longitude'];
-              final averageRating =
-                  docs
-                      .map((d) => (d['rating'] as num))
-                      .reduce((a, b) => a + b) /
-                  docs.length;
-              final comment = docs.last['comment'] ?? '';
-
-              totalSum += averageRating;
-              totalCount++;
-
-              if (_filter == 'safe' && averageRating < 7) return null;
-              if (_filter == 'dangerous' && averageRating >= 7) return null;
-
-              final color =
-                  averageRating >= 7
-                      ? BitmapDescriptor.hueGreen
-                      : averageRating >= 4
-                      ? BitmapDescriptor.hueYellow
-                      : BitmapDescriptor.hueRed;
-
-              return Marker(
-                markerId: MarkerId(entry.key),
-                position: LatLng(lat, lng),
-                infoWindow: InfoWindow(
-                  title: 'Povp. ocena: ${averageRating.toStringAsFixed(1)}',
-                  snippet: comment,
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(color),
-              );
-            })
-            .whereType<Marker>()
-            .toSet();
-
-    setState(() {
-      _markers.clear();
-      _markers.addAll(newMarkers);
-      _avgAllRatings = totalCount > 0 ? totalSum / totalCount : 0;
-    });
   }
 
   void _changeFilter(String filter) {
@@ -261,7 +267,7 @@ class _MapScreenState extends State<MapScreen> {
                               'timestamp': Timestamp.now(),
                               'uid': currentUser?.uid ?? '',
                             });
-                        _loadStreetRatings();
+                        await _loadStreetRatings();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Hvala za vašo oceno!')),
                         );
@@ -292,7 +298,7 @@ class _MapScreenState extends State<MapScreen> {
         'uid': currentUser?.uid ?? '',
       });
 
-      _loadStreetRatings();
+      await _loadStreetRatings();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Hvala za vašo oceno!')));
