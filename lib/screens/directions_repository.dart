@@ -2,10 +2,13 @@ import 'package:dio/dio.dart';
 import 'env.dart';
 import 'directions_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart'
+    hide TravelMode;
 import 'package:geocoding/geocoding.dart' as geo;
 import 'osm_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart'
+    as polyline;
 
 class DirectionsRepository {
   static const String _directionsBaseUrl =
@@ -25,18 +28,27 @@ class DirectionsRepository {
     required LatLng origin,
     required LatLng destination,
     required SafetyPreference preference,
+    required TravelMode travelMode,
   }) async {
     try {
+      final queryParams = {
+        'origin': '${origin.latitude},${origin.longitude}',
+        'destination': '${destination.latitude},${destination.longitude}',
+        'key': googleAPIKey,
+        'alternatives': 'true',
+      };
+
+      if (travelMode == TravelMode.driving) {
+        queryParams['mode'] = 'driving';
+        queryParams['departure_time'] = 'now';
+        queryParams['traffic_model'] = 'best_guess';
+      } else {
+        queryParams['mode'] = 'walking';
+      }
+
       final directionsResponse = await _dio.get(
         _directionsBaseUrl,
-        queryParameters: {
-          'origin': '${origin.latitude},${origin.longitude}',
-          'destination': '${destination.latitude},${destination.longitude}',
-          'key': googleAPIKey,
-          'alternatives': 'true',
-          'departure_time': 'now',
-          'traffic_model': 'best_guess',
-        },
+        queryParameters: queryParams,
       );
 
       if (directionsResponse.statusCode != 200) {
@@ -46,22 +58,26 @@ class DirectionsRepository {
       }
 
       final routesData = directionsResponse.data['routes'] as List;
-      final routesWithTraffic = await Future.wait(
+      final routesWithSafetyData = await Future.wait(
         routesData.map((route) async {
           final points = _polylinePoints.decodePolyline(
             route['overview_polyline']['points'],
           );
 
-          final trafficData = await _getDetailedTrafficData(points);
+          final safetyData =
+              travelMode == TravelMode.driving
+                  ? await _getDrivingSafetyData(points)
+                  : await _getWalkingSafetyData(points);
 
-          return {'route': route, 'trafficData': trafficData};
+          return {'route': route, 'safetyData': safetyData};
         }),
       );
 
-      return DirectionsList.fromMapWithTraffic(
+      return DirectionsList.fromMapWithSafetyData(
         directionsResponse.data,
-        routesWithTraffic,
+        routesWithSafetyData,
         preference,
+        travelMode,
       );
     } catch (e) {
       print('Error in getDirections: $e');
@@ -69,7 +85,7 @@ class DirectionsRepository {
     }
   }
 
-  Future<Map<String, dynamic>> _getDetailedTrafficData(
+  Future<Map<String, dynamic>> _getDrivingSafetyData(
     List<PointLatLng> routePoints,
   ) async {
     try {
@@ -138,67 +154,111 @@ class DirectionsRepository {
         }
       }
 
-      double totalLightingScore = 0;
-      int lightingPoints = 0;
-
-      for (int i = 0; i < routePoints.length; i += 5) {
-        double score = await _osmRepository.getLightingScoreForLocation(
-          LatLng(routePoints[i].latitude, routePoints[i].longitude),
-        );
-
-        totalLightingScore += score.clamp(1.0, 10.0);
-        lightingPoints++;
-      }
-
-      double totalUserRating = 0;
-      int userRatingPoints = 0;
-
-      for (int i = 0; i < routePoints.length; i += 20) {
-        try {
-          final placemarks = await geo.placemarkFromCoordinates(
-            routePoints[i].latitude,
-            routePoints[i].longitude,
-          );
-
-          if (placemarks.isNotEmpty) {
-            final place = placemarks.first;
-            final streetName = extractPureStreetName(
-              place.street ?? place.thoroughfare,
-            );
-
-            if (streetName.isNotEmpty) {
-              final rating = await getStreetRating(streetName);
-              totalUserRating += rating;
-              userRatingPoints++;
-            }
-          }
-        } catch (e) {
-          print('Error getting user rating for point: $e');
-        }
-      }
-      final avgUserRating =
-          userRatingPoints > 0 ? totalUserRating / userRatingPoints : 5.0;
+      final lightingData = await _getLightingData(routePoints);
+      final userRatingData = await _getUserRatingData(routePoints);
 
       final avgTrafficScore =
           segmentCount > 0 ? totalTrafficScore / segmentCount : 5.0;
 
       return {
         'traffic': avgTrafficScore,
-        'lighting':
-            lightingPoints > 0 ? (totalLightingScore / lightingPoints) : 5.0,
-        'userRating': avgUserRating,
-        'segments_analyzed': segmentCount,
+        'lighting': lightingData['lighting'],
+        'userRating': userRatingData['userRating'],
+        'streetNames': userRatingData['streetNames'],
       };
     } catch (e) {
-      print('Error in _getDetailedTrafficData: $e');
+      print('Error in _getDrivingSafetyData: $e');
       return {
         'traffic': 5.0,
         'lighting': 5.0,
         'userRating': 5.0,
-        'segments_analyzed': 0,
-        'error': e.toString(),
+        'streetNames': [],
       };
     }
+  }
+
+  Future<Map<String, dynamic>> _getWalkingSafetyData(
+    List<PointLatLng> routePoints,
+  ) async {
+    try {
+      final lightingData = await _getLightingData(routePoints);
+      final userRatingData = await _getUserRatingData(routePoints);
+
+      return {
+        'traffic': 5.0,
+        'lighting': lightingData['lighting'],
+        'userRating': userRatingData['userRating'],
+        'streetNames': userRatingData['streetNames'],
+      };
+    } catch (e) {
+      print('Error in _getWalkingSafetyData: $e');
+      return {
+        'traffic': 5.0,
+        'lighting': 5.0,
+        'userRating': 5.0,
+        'streetNames': [],
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _getLightingData(
+    List<PointLatLng> routePoints,
+  ) async {
+    double totalLightingScore = 0;
+    int lightingPoints = 0;
+
+    for (int i = 0; i < routePoints.length; i += 5) {
+      double score = await _osmRepository.getLightingScoreForLocation(
+        LatLng(routePoints[i].latitude, routePoints[i].longitude),
+      );
+
+      totalLightingScore += score.clamp(1.0, 10.0);
+      lightingPoints++;
+    }
+
+    return {
+      'lighting':
+          lightingPoints > 0 ? (totalLightingScore / lightingPoints) : 5.0,
+    };
+  }
+
+  Future<Map<String, dynamic>> _getUserRatingData(
+    List<PointLatLng> routePoints,
+  ) async {
+    double totalUserRating = 0;
+    int userRatingPoints = 0;
+    final streetNames = <String>[];
+
+    for (int i = 0; i < routePoints.length; i += 20) {
+      try {
+        final placemarks = await geo.placemarkFromCoordinates(
+          routePoints[i].latitude,
+          routePoints[i].longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          final streetName = extractPureStreetName(
+            place.street ?? place.thoroughfare,
+          );
+
+          if (streetName.isNotEmpty) {
+            streetNames.add(streetName);
+            final rating = await getStreetRating(streetName);
+            totalUserRating += rating;
+            userRatingPoints++;
+          }
+        }
+      } catch (e) {
+        print('Error getting user rating for point: $e');
+      }
+    }
+
+    return {
+      'userRating':
+          userRatingPoints > 0 ? (totalUserRating / userRatingPoints) : 5.0,
+      'streetNames': streetNames,
+    };
   }
 
   double _calculateTrafficScore(double delayRatio) {
@@ -282,8 +342,6 @@ class DirectionsRepository {
       throw Exception('Failed to save rating: $e');
     }
   }
-
-  static final Map<String, double> _streetRatingCache = {};
 
   static Future<double> getStreetRating(String fullStreet) async {
     try {

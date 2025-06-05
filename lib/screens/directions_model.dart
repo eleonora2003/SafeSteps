@@ -14,6 +14,7 @@ class Directions {
   final double trafficScore;
   final double userRatingScore;
   final List<String> streetNames;
+  final TravelMode travelMode;
 
   const Directions({
     required this.bounds,
@@ -25,11 +26,13 @@ class Directions {
     required this.trafficScore,
     required this.userRatingScore,
     this.streetNames = const [],
+    this.travelMode = TravelMode.driving,
   });
 
   factory Directions.fromMap(
     Map<String, dynamic> map,
     Map<String, dynamic> safetyData,
+    TravelMode travelMode,
   ) {
     if ((map['routes'] as List).isEmpty) {
       return Directions(
@@ -41,6 +44,7 @@ class Directions {
         lightingScore: 5.0,
         trafficScore: 5.0,
         userRatingScore: 5.0,
+        travelMode: travelMode,
       );
     }
 
@@ -71,6 +75,7 @@ class Directions {
       trafficScore: safetyData['traffic'] ?? 5.0,
       userRatingScore: safetyData['userRating'] ?? 5.0,
       streetNames: safetyData['streetNames'] ?? [],
+      travelMode: travelMode,
     );
   }
 }
@@ -78,41 +83,54 @@ class Directions {
 class DirectionsList {
   final List<Directions> routes;
   final SafetyPreference preference;
+  final TravelMode travelMode;
 
-  DirectionsList({required this.routes, required this.preference});
+  DirectionsList({
+    required this.routes,
+    required this.preference,
+    required this.travelMode,
+  });
 
-  static Future<DirectionsList> fromMapWithTraffic(
+  static Future<DirectionsList> fromMapWithSafetyData(
     Map<String, dynamic> map,
-    List<Map<String, dynamic>> routesWithTraffic,
+    List<Map<String, dynamic>> routesWithSafetyData,
     SafetyPreference preference,
+    TravelMode travelMode,
   ) async {
     final routes = await Future.wait(
-      routesWithTraffic.map((routeData) async {
+      routesWithSafetyData.map((routeData) async {
         final route = routeData['route'];
-        final trafficData = routeData['trafficData'];
+        final safetyData = routeData['safetyData'];
 
-        final safetyData = await _getRouteSafetyData(
-          PolylinePoints().decodePolyline(route['overview_polyline']['points']),
-          preference,
-          trafficData: trafficData,
+        return Directions.fromMap(
+          {
+            'routes': [route],
+          },
+          safetyData,
+          travelMode,
         );
-
-        return Directions.fromMap({
-          'routes': [route],
-        }, safetyData);
       }),
     );
 
-    return DirectionsList(routes: routes, preference: preference);
+    return DirectionsList(
+      routes: routes,
+      preference: preference,
+      travelMode: travelMode,
+    );
   }
 
   static Future<Map<String, dynamic>> _getRouteSafetyData(
     List<PointLatLng> points,
     SafetyPreference preference, {
     Map<String, dynamic>? trafficData,
+    required TravelMode travelMode,
   }) async {
-    final trafficScore = trafficData?['traffic'] ?? 5.0;
-    final lightingScore = trafficData?['lighting'] ?? 5.0;
+    double trafficScore = trafficData?['traffic'] ?? 5.0;
+    double lightingScore = trafficData?['lighting'] ?? 5.0;
+
+    if (travelMode == TravelMode.walking) {
+      trafficScore = 5.0;
+    }
 
     double userRating = 5.0;
     try {
@@ -134,7 +152,7 @@ class DirectionsList {
     }
 
     final safetyScore =
-        (preference.considerTraffic
+        (preference.considerTraffic && travelMode == TravelMode.driving
             ? preference.trafficWeight * trafficScore
             : 0) +
         (preference.considerLighting
@@ -149,6 +167,7 @@ class DirectionsList {
       'lighting': lightingScore,
       'traffic': trafficScore,
       'userRating': userRating,
+      'streetNames': await _getStreetNamesForRoute(points),
     };
   }
 
@@ -204,3 +223,5 @@ class SafetyPreference {
     this.userRatingWeight = 0.3,
   });
 }
+
+enum TravelMode { driving, walking }
