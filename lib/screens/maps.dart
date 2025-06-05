@@ -60,6 +60,7 @@ class _MapScreenState extends State<MapScreenTask> {
       double totalScore = 0;
       int activeCriteria = 0;
       Color polylineColor;
+
       if (_safetyPreference.considerTraffic) {
         totalScore += route.trafficScore;
         activeCriteria++;
@@ -68,10 +69,10 @@ class _MapScreenState extends State<MapScreenTask> {
       if (_safetyPreference.considerLighting) {
         totalScore += route.lightingScore;
         activeCriteria++;
-      } else if (_safetyPreference.considerTraffic) {
-        polylineColor = _getColorForScore(route.trafficScore);
-      } else {
-        polylineColor = _getColorForScore(route.userRatingScore);
+      }
+      if (_safetyPreference.considerUserRatings) {
+        totalScore += route.userRatingScore;
+        activeCriteria++;
       }
 
       final averageScore =
@@ -95,17 +96,11 @@ class _MapScreenState extends State<MapScreenTask> {
   }
 
   Color _getColorForScore(double score) {
-    if (_safetyPreference.considerTraffic) {
-      // Posebna logika za promet
-      if (score >= 7.0) return Colors.green;
-      if (score >= 4.0) return Colors.yellow;
-      return Colors.red;
-    } else {
-      // Originalna logika za druge faktorje
-      if (score >= 7.0) return Colors.green;
-      if (score >= 4.0) return Colors.yellow;
-      return Colors.red;
-    }
+    final normalizedScore = score.clamp(1.0, 10.0);
+
+    if (normalizedScore >= 7.0) return Colors.green;
+    if (normalizedScore >= 4.0) return Colors.yellow;
+    return Colors.red;
   }
 
   Future<void> _addMarker(LatLng pos, bool isOrigin) async {
@@ -133,7 +128,6 @@ class _MapScreenState extends State<MapScreenTask> {
       _selectedRouteIndex = 0;
     });
 
-    // Get address from coordinates
     try {
       final placemarks = await geo.placemarkFromCoordinates(
         pos.latitude,
@@ -287,6 +281,148 @@ class _MapScreenState extends State<MapScreenTask> {
     );
   }
 
+  Future<void> _handleLongPress(LatLng pos) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Izberite akcijo'),
+            actions: [
+              TextButton(
+                child: Text('Dodaj marker'),
+                onPressed: () => Navigator.pop(context, 'marker'),
+              ),
+              TextButton(
+                child: Text('Oceni ulico'),
+                onPressed: () => Navigator.pop(context, 'rate'),
+              ),
+              TextButton(
+                child: Text('Prekliči'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+    );
+
+    if (action == 'marker') {
+      _addMarker(pos, _origin == null);
+    } else if (action == 'rate') {
+      await _showSimpleRatingDialog(pos);
+    }
+  }
+
+  Future<void> _showSimpleRatingDialog(LatLng position) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final placemarks = await geo.placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isEmpty) {
+        throw Exception('Ne najdem ulice na tej lokaciji');
+      }
+
+      final place = placemarks.first;
+      final streetName = DirectionsRepository.extractPureStreetName(
+        place.street ?? place.thoroughfare,
+      );
+
+      int? selectedRating;
+
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text('Ocenite varnost ulice'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      streetName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    Slider(
+                      value: selectedRating?.toDouble() ?? 5.0,
+                      min: 1,
+                      max: 10,
+                      divisions: 9,
+                      label: selectedRating?.toString() ?? '5',
+                      onChanged: (value) {
+                        setState(() => selectedRating = value.round());
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      selectedRating != null
+                          ? 'Ocena: $selectedRating/10'
+                          : 'Izberite oceno s pomočjo drsnika',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Prekliči'),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        selectedRating != null
+                            ? () => Navigator.pop(context, true)
+                            : null,
+                    child: Text('Shrani oceno'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      await DirectionsRepository.saveStreetRating(streetName, selectedRating!);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Napaka: ${e.toString()}'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveRatingWithRetry(String streetName, int rating) async {
+    try {
+      await DirectionsRepository.saveStreetRating(streetName, rating);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ocena za $streetName uspešno shranjena!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      if (_origin != null && _destination != null) {
+        await _getRouteDirections();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Napaka: ${e.toString()}'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Widget _buildSafetyLegend() {
     return Positioned(
       bottom: 20,
@@ -371,8 +507,13 @@ class _MapScreenState extends State<MapScreenTask> {
         if (_safetyPreference.considerLighting)
           _buildLegendItem(Colors.amber, 'Osvetlitev 💡'),
         if (_safetyPreference.considerUserRatings)
-          _buildLegendItem(Colors.purple, 'Ocene ⭐'),
+          _buildLegendItem(Colors.purple, 'Ocene uporabnikov⭐'),
         SizedBox(height: 8),
+        if (_safetyPreference.considerUserRatings)
+          Text(
+            'Uporabniške ocene: 7 (privzeto, če ni podatka)',
+            style: TextStyle(fontSize: 12),
+          ),
         Text(
           'Tap to close',
           style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -617,7 +758,7 @@ class _MapScreenState extends State<MapScreenTask> {
               onMapCreated: (controller) => _googleMapController = controller,
               markers: _markers,
               polylines: _buildPolylines(),
-              onLongPress: (pos) => _addMarker(pos, _origin == null),
+              onLongPress: _handleLongPress,
             ),
           _buildSafetyLegend(),
           Positioned(

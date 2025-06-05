@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'osm_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DirectionsRepository {
   static const String _directionsBaseUrl =
@@ -136,9 +137,6 @@ class DirectionsRepository {
           }
         }
       }
-      //Casovno odvisno ocenjevanje
-      final hour = DateTime.now().hour;
-      final isNightTime = hour > 18 || hour < 6;
 
       double totalLightingScore = 0;
       int lightingPoints = 0;
@@ -148,14 +146,38 @@ class DirectionsRepository {
           LatLng(routePoints[i].latitude, routePoints[i].longitude),
         );
 
-        // Poudarite pomen osvetlitve ponoči
-        if (isNightTime) {
-          score = score * 1.3; // 30% večji vpliv ponoči
-        }
-
         totalLightingScore += score.clamp(1.0, 10.0);
         lightingPoints++;
       }
+
+      double totalUserRating = 0;
+      int userRatingPoints = 0;
+
+      for (int i = 0; i < routePoints.length; i += 20) {
+        try {
+          final placemarks = await geo.placemarkFromCoordinates(
+            routePoints[i].latitude,
+            routePoints[i].longitude,
+          );
+
+          if (placemarks.isNotEmpty) {
+            final place = placemarks.first;
+            final streetName = extractPureStreetName(
+              place.street ?? place.thoroughfare,
+            );
+
+            if (streetName.isNotEmpty) {
+              final rating = await getStreetRating(streetName);
+              totalUserRating += rating;
+              userRatingPoints++;
+            }
+          }
+        } catch (e) {
+          print('Error getting user rating for point: $e');
+        }
+      }
+      final avgUserRating =
+          userRatingPoints > 0 ? totalUserRating / userRatingPoints : 5.0;
 
       final avgTrafficScore =
           segmentCount > 0 ? totalTrafficScore / segmentCount : 5.0;
@@ -164,11 +186,18 @@ class DirectionsRepository {
         'traffic': avgTrafficScore,
         'lighting':
             lightingPoints > 0 ? (totalLightingScore / lightingPoints) : 5.0,
+        'userRating': avgUserRating,
         'segments_analyzed': segmentCount,
       };
     } catch (e) {
       print('Error in _getDetailedTrafficData: $e');
-      return {'traffic': 5.0, 'segments_analyzed': 0, 'error': e.toString()};
+      return {
+        'traffic': 5.0,
+        'lighting': 5.0,
+        'userRating': 5.0,
+        'segments_analyzed': 0,
+        'error': e.toString(),
+      };
     }
   }
 
@@ -208,5 +237,101 @@ class DirectionsRepository {
       print('Error in getPlaceName: $e');
       return null;
     }
+  }
+
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _ratingsCollection = 'ratings';
+
+  static Future<void> saveStreetRating(String fullStreet, int newRating) async {
+    try {
+      final streetName = extractPureStreetName(fullStreet);
+      final docRef = _firestore.collection(_ratingsCollection).doc(streetName);
+
+      await _firestore.runTransaction((transaction) async {
+        final doc = await transaction.get(docRef);
+
+        if (doc.exists) {
+          final data = doc.data()!;
+          final currentAvg = data['averageRating'] ?? 5.0;
+          final currentCount = data['count'] ?? 0;
+          final currentTotal = data['totalRating'] ?? 0;
+
+          final newCount = currentCount + 1;
+          final newTotal = currentTotal + newRating;
+          final newAvg = newTotal / newCount;
+
+          transaction.update(docRef, {
+            'averageRating': newAvg,
+            'count': newCount,
+            'totalRating': newTotal,
+            'lastUpdated': FieldValue.serverTimestamp(),
+            'streetName': streetName,
+          });
+        } else {
+          transaction.set(docRef, {
+            'averageRating': newRating.toDouble(),
+            'count': 1,
+            'totalRating': newRating,
+            'streetName': streetName,
+            'createdAt': FieldValue.serverTimestamp(),
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    } catch (e) {
+      throw Exception('Failed to save rating: $e');
+    }
+  }
+
+  static final Map<String, double> _streetRatingCache = {};
+
+  static Future<double> getStreetRating(String fullStreet) async {
+    try {
+      final streetName = extractPureStreetName(fullStreet);
+      if (streetName.isEmpty) return 5.0;
+
+      print('Fetching rating for street: $streetName');
+
+      final doc =
+          await _firestore.collection(_ratingsCollection).doc(streetName).get();
+
+      if (!doc.exists) {
+        print('No rating found for street: $streetName, using default 5.0');
+        return 5.0;
+      }
+
+      final data = doc.data();
+      if (data == null) {
+        print('Document exists but has no data for street: $streetName');
+        return 5.0;
+      }
+
+      print('Firestore document data: $data');
+
+      final rating =
+          data['averageRating'] ?? data['avgRating'] ?? data['rating'] ?? 5.0;
+
+      final double finalRating =
+          (rating is int)
+              ? rating.toDouble()
+              : (rating is double)
+              ? rating
+              : 5.0;
+
+      print('Resolved rating for $streetName: $finalRating');
+      return finalRating;
+    } catch (e) {
+      print('Error getting street rating: $e');
+      return 5.0;
+    }
+  }
+
+  static String extractPureStreetName(String? fullStreet) {
+    if (fullStreet == null) return 'Unknown Street';
+
+    return fullStreet
+        .replaceAll(RegExp(r'\d+.*$'), '')
+        .replaceAll(RegExp(r',.*$'), '')
+        .trim();
   }
 }
