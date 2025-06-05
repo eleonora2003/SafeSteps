@@ -58,7 +58,7 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
         actions: [
           Row(
             children: [
-              const Text("Moje", style: TextStyle(color: Colors.white)),
+              const Text("", style: TextStyle(color: Colors.white)),
               Switch(
                 value: showOnlyMine,
                 onChanged: (val) {

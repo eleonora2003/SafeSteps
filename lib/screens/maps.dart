@@ -19,6 +19,7 @@ class _MapScreenState extends State<MapScreenTask> {
   DirectionsList? _directionsList;
   int _selectedRouteIndex = 0;
   bool _showLegendPopup = false;
+  TravelMode _travelMode = TravelMode.driving;
 
   final TextEditingController _originController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
@@ -61,7 +62,8 @@ class _MapScreenState extends State<MapScreenTask> {
       int activeCriteria = 0;
       Color polylineColor;
 
-      if (_safetyPreference.considerTraffic) {
+      if (_safetyPreference.considerTraffic &&
+          _travelMode == TravelMode.driving) {
         totalScore += route.trafficScore;
         activeCriteria++;
       }
@@ -77,6 +79,9 @@ class _MapScreenState extends State<MapScreenTask> {
 
       final averageScore =
           activeCriteria > 0 ? totalScore / activeCriteria : 5.0;
+
+      final isDashed = _travelMode == TravelMode.walking;
+
       polylines.add(
         Polyline(
           polylineId: PolylineId('route_$i'),
@@ -89,6 +94,7 @@ class _MapScreenState extends State<MapScreenTask> {
               route.polylinePoints
                   .map((e) => LatLng(e.latitude, e.longitude))
                   .toList(),
+          patterns: isDashed ? [PatternItem.dash(10), PatternItem.gap(10)] : [],
         ),
       );
     }
@@ -176,6 +182,7 @@ class _MapScreenState extends State<MapScreenTask> {
       origin: _origin!.position,
       destination: _destination!.position,
       preference: _safetyPreference,
+      travelMode: _travelMode,
     );
 
     if (directionsList != null && directionsList.routes.isNotEmpty) {
@@ -226,12 +233,14 @@ class _MapScreenState extends State<MapScreenTask> {
 
   Widget _buildRouteDropdown() {
     if (_directionsList == null) return const SizedBox.shrink();
-
+    if (_selectedRouteIndex >= _directionsList!.routes.length) {
+      _selectedRouteIndex = 0;
+    }
     return Container(
       color: Colors.white.withOpacity(0.9),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: DropdownButton<int>(
-        value: _selectedRouteIndex,
+        value: _selectedRouteIndex.clamp(0, _directionsList!.routes.length - 1),
         isExpanded: true,
         items: List.generate(_directionsList!.routes.length, (index) {
           final route = _directionsList!.routes[index];
@@ -240,7 +249,8 @@ class _MapScreenState extends State<MapScreenTask> {
           int activeCriteria = 0;
           String safetyInfo = '';
 
-          if (_safetyPreference.considerTraffic) {
+          if (_safetyPreference.considerTraffic &&
+              _travelMode == TravelMode.driving) {
             totalScore += route.trafficScore;
             activeCriteria++;
             safetyInfo += '🚦 ${route.trafficScore.toStringAsFixed(1)} ';
@@ -387,7 +397,12 @@ class _MapScreenState extends State<MapScreenTask> {
         },
       );
 
-      await DirectionsRepository.saveStreetRating(streetName, selectedRating!);
+      if (result == true && selectedRating != null) {
+        await DirectionsRepository.saveStreetRating(
+          streetName,
+          selectedRating!,
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -397,29 +412,6 @@ class _MapScreenState extends State<MapScreenTask> {
       );
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _saveRatingWithRetry(String streetName, int rating) async {
-    try {
-      await DirectionsRepository.saveStreetRating(streetName, rating);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ocena za $streetName uspešno shranjena!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      if (_origin != null && _destination != null) {
-        await _getRouteDirections();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Napaka: ${e.toString()}'),
-          duration: Duration(seconds: 3),
-        ),
-      );
     }
   }
 
@@ -494,7 +486,7 @@ class _MapScreenState extends State<MapScreenTask> {
         ),
         SizedBox(height: 8),
         _buildLegendItem(Colors.green, '7-10: Varna pot'),
-        _buildLegendItem(Colors.orange, '4-6: Zmerno varna'),
+        _buildLegendItem(Colors.yellow, '4-6: Zmerno varna'),
         _buildLegendItem(Colors.red, '1-3: Nevarna'),
         SizedBox(height: 8),
         Text(
@@ -502,18 +494,18 @@ class _MapScreenState extends State<MapScreenTask> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 4),
-        if (_safetyPreference.considerTraffic)
+        if (_safetyPreference.considerTraffic &&
+            _travelMode == TravelMode.driving)
           _buildLegendItem(Colors.blue, 'Promet 🚦'),
         if (_safetyPreference.considerLighting)
           _buildLegendItem(Colors.amber, 'Osvetlitev 💡'),
         if (_safetyPreference.considerUserRatings)
           _buildLegendItem(Colors.purple, 'Ocene uporabnikov⭐'),
         SizedBox(height: 8),
-        if (_safetyPreference.considerUserRatings)
-          Text(
-            'Uporabniške ocene: 7 (privzeto, če ni podatka)',
-            style: TextStyle(fontSize: 12),
-          ),
+        Text(
+          'Način poti: ${_travelMode == TravelMode.driving ? 'Vozilo 🚗' : 'Hoja 🚶'}',
+          style: TextStyle(fontSize: 12),
+        ),
         Text(
           'Tap to close',
           style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -544,18 +536,33 @@ class _MapScreenState extends State<MapScreenTask> {
 
   Widget _buildSafetyPreferenceDialog() {
     return StatefulBuilder(
-      builder: (context, setState) {
-        return AlertDialog(
-          title: Text('Varnostne nastavitve'),
-          content: SingleChildScrollView(
+      builder: (context, setStateDialog) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SwitchListTile(
-                  title: Text('Upoštevajte osvetlitev'),
+                Text(
+                  'Varnostne nastavitve',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E7D46),
+                  ),
+                ),
+                SizedBox(height: 20),
+
+                _buildPreferenceSwitch(
+                  title: 'Upoštevaj osvetlitev',
                   value: _safetyPreference.considerLighting,
+                  icon: Icons.lightbulb_outline,
                   onChanged: (value) {
-                    setState(() {
+                    setStateDialog(() {
                       _safetyPreference = SafetyPreference(
                         considerLighting: value,
                         considerTraffic: _safetyPreference.considerTraffic,
@@ -565,25 +572,30 @@ class _MapScreenState extends State<MapScreenTask> {
                     });
                   },
                 ),
-                SwitchListTile(
-                  title: Text('Upoštevajte promet'),
-                  value: _safetyPreference.considerTraffic,
-                  onChanged: (value) {
-                    setState(() {
-                      _safetyPreference = SafetyPreference(
-                        considerLighting: _safetyPreference.considerLighting,
-                        considerTraffic: value,
-                        considerUserRatings:
-                            _safetyPreference.considerUserRatings,
-                      );
-                    });
-                  },
-                ),
-                SwitchListTile(
-                  title: Text('Upoštevajte ocene uporabnikov'),
+
+                if (_travelMode == TravelMode.driving)
+                  _buildPreferenceSwitch(
+                    title: 'Upoštevaj promet',
+                    value: _safetyPreference.considerTraffic,
+                    icon: Icons.traffic,
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        _safetyPreference = SafetyPreference(
+                          considerLighting: _safetyPreference.considerLighting,
+                          considerTraffic: value,
+                          considerUserRatings:
+                              _safetyPreference.considerUserRatings,
+                        );
+                      });
+                    },
+                  ),
+
+                _buildPreferenceSwitch(
+                  title: 'Upoštevaj ocene uporabnikov',
                   value: _safetyPreference.considerUserRatings,
+                  icon: Icons.star_outline,
                   onChanged: (value) {
-                    setState(() {
+                    setStateDialog(() {
                       _safetyPreference = SafetyPreference(
                         considerLighting: _safetyPreference.considerLighting,
                         considerTraffic: _safetyPreference.considerTraffic,
@@ -592,26 +604,141 @@ class _MapScreenState extends State<MapScreenTask> {
                     });
                   },
                 ),
+
+                Divider(height: 30, thickness: 1),
+
+                Text(
+                  'Način potovanja',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTravelModeButton(
+                        icon: Icons.directions_car,
+                        label: 'Vozilo',
+                        isActive: _travelMode == TravelMode.driving,
+                        onTap: () {
+                          setStateDialog(() {
+                            _travelMode = TravelMode.driving;
+                          });
+                          if (_origin != null && _destination != null) {
+                            _getRouteDirections();
+                          }
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTravelModeButton(
+                        icon: Icons.directions_walk,
+                        label: 'Hoja',
+                        isActive: _travelMode == TravelMode.walking,
+                        onTap: () {
+                          setStateDialog(() {
+                            _travelMode = TravelMode.walking;
+                          });
+                          if (_origin != null && _destination != null) {
+                            _getRouteDirections();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('PREKLIČI'),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF1E7D46),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          if (_origin != null && _destination != null) {
+                            _getRouteDirections();
+                          }
+                        });
+                      },
+                      child: Text('SHRANI'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Prekliči'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (_origin != null && _destination != null) {
-                  _getRouteDirections();
-                }
-              },
-              child: Text('Shrani'),
-            ),
-          ],
         );
       },
+    );
+  }
+
+  Widget _buildPreferenceSwitch({
+    required String title,
+    required bool value,
+    required IconData icon,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey[700], size: 22),
+          SizedBox(width: 12),
+          Expanded(child: Text(title, style: TextStyle(fontSize: 15))),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Color(0xFF1E7D46),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTravelModeButton({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color:
+              isActive ? Color(0xFF1E7D46).withOpacity(0.2) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive ? Color(0xFF1E7D46) : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: isActive ? Color(0xFF1E7D46) : Colors.grey[600]),
+            SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Color(0xFF1E7D46) : Colors.grey[700],
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -708,12 +835,11 @@ class _MapScreenState extends State<MapScreenTask> {
         centerTitle: false,
         titleSpacing: 20,
         iconTheme: IconThemeData(color: Colors.white),
-
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'SafeSteps - Izbira poti',
+              'SafeSteps',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 18,
