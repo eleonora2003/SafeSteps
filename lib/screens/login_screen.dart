@@ -5,9 +5,10 @@ import 'auth_service.dart';
 import 'map_screen.dart';
 
 class LoginScreen extends StatelessWidget {
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
 
-  LoginScreen({super.key});
+  LoginScreen({super.key, AuthService? authService})
+    : _authService = authService ?? AuthService();
 
   @override
   Widget build(BuildContext context) {

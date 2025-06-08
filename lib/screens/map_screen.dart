@@ -14,16 +14,26 @@ import 'maps.dart';
 import 'ratings_pie_chart_screen.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({Key? key}) : super(key: key);
+  final Set<Marker>? testMarkers;
+  final loc.Location? location;
+  final LatLng? initialPosition;
+  final bool skipInitialLocation;
+
+  const MapScreen({
+    Key? key,
+    this.testMarkers,
+    this.location,
+    this.initialPosition,
+    this.skipInitialLocation = false,
+  }) : super(key: key);
 
   @override
-  State<MapScreen> createState() => _MapScreenState();
+  State<MapScreen> createState() => MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class MapScreenState extends State<MapScreen> {
   late GoogleMapController mapController;
-
-  final loc.Location _location = loc.Location();
+  late loc.Location _location;
   LatLng? _currentPosition;
   MapType _mapType = MapType.normal;
   final LatLng _mariborLatLng = const LatLng(46.5547, 15.6459);
@@ -34,10 +44,16 @@ class _MapScreenState extends State<MapScreen> {
   final currentUser = FirebaseAuth.instance.currentUser;
   final TextEditingController _searchController = TextEditingController();
 
+  MapScreenState() : _location = loc.Location();
+
   @override
   void initState() {
     super.initState();
-    _setInitialLocation();
+    _location = widget.location ?? loc.Location();
+    _currentPosition = widget.initialPosition;
+    if (_currentPosition == null && !widget.skipInitialLocation) {
+      _setInitialLocation();
+    }
     _loadStreetRatings();
   }
 
@@ -381,7 +397,11 @@ class _MapScreenState extends State<MapScreen> {
                       () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AllRatingsScreen(),
+                          builder:
+                              (_) => AllRatingsScreen(
+                                firestore: FirebaseFirestore.instance,
+                                auth: FirebaseAuth.instance,
+                              ),
                         ),
                       ),
                 ),
@@ -406,7 +426,10 @@ class _MapScreenState extends State<MapScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const RatingsPieChartScreen(),
+                          builder:
+                              (_) => RatingsPieChartScreen(
+                                firestore: FirebaseFirestore.instance,
+                              ),
                         ),
                       );
                     },
@@ -451,6 +474,7 @@ class _MapScreenState extends State<MapScreen> {
                     left: 15,
                     right: 15,
                     child: Container(
+                      key: const Key('search_bar_container'),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         color: Colors.white,
