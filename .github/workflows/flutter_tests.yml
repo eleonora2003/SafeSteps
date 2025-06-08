@@ -23,7 +23,7 @@ jobs:
       # Setup Flutter
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.13.0' # Match your Flutter version
+          flutter-version: '3.13.0'
           channel: 'stable'
       
       # Get dependencies
@@ -44,13 +44,10 @@ jobs:
       - name: Analyze code
         run: flutter analyze
       
-      # Run unit tests
-      - name: Run unit tests
-        run: flutter test --test-randomize-ordering-seed random
-      
-      # Run widget tests
-      - name: Run widget tests
+      # Combined test running for better efficiency
+      - name: Run all tests
         run: |
+          flutter test --test-randomize-ordering-seed random
           flutter test test/map_screen_test.dart
           flutter test test/login_screen_test.dart
           flutter test test/auth_service_test.dart
@@ -58,17 +55,20 @@ jobs:
           flutter test test/osm_repository_test.dart
           flutter test test/directions_model_test.dart
       
-      # Run with coverage (optional)
-      - name: Run tests with coverage
+      # Run with coverage
+      - name: Generate coverage report
+        if: always()
         run: |
           flutter test --coverage
-          # You can add codecov or other coverage reporting here
+          # Generate HTML coverage report (optional)
+          genhtml coverage/lcov.info -o coverage/html
       
-      # Upload test results (optional)
-      - uses: actions/upload-artifact@v3
+      # Upload coverage results using updated v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
           path: |
             coverage/lcov.info
+            coverage/html/
             test/**/output.xml
