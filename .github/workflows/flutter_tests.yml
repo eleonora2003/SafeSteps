@@ -1,0 +1,74 @@
+name: Flutter Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Flutter Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Setup Java for Firebase emulators
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      
+      # Setup Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.13.0' # Match your Flutter version
+          channel: 'stable'
+      
+      # Get dependencies
+      - name: Install dependencies
+        run: flutter pub get
+      
+      # Cache dependencies to speed up builds
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/build/
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+      
+      # Run analyzer
+      - name: Analyze code
+        run: flutter analyze
+      
+      # Run unit tests
+      - name: Run unit tests
+        run: flutter test --test-randomize-ordering-seed random
+      
+      # Run widget tests
+      - name: Run widget tests
+        run: |
+          flutter test test/map_screen_test.dart
+          flutter test test/login_screen_test.dart
+          flutter test test/auth_service_test.dart
+          flutter test test/directions_repository_test.dart
+          flutter test test/osm_repository_test.dart
+          flutter test test/directions_model_test.dart
+      
+      # Run with coverage (optional)
+      - name: Run tests with coverage
+        run: |
+          flutter test --coverage
+          # You can add codecov or other coverage reporting here
+      
+      # Upload test results (optional)
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            coverage/lcov.info
+            test/**/output.xml
