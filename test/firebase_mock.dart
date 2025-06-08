@@ -1,9 +1,7 @@
-// test/firebase_mock.dart
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// This is the proper way to mock Firebase without violating platform interface rules
 class TestFirebasePlatform extends FirebasePlatform {
   @override
   FirebaseAppPlatform app([String name = defaultFirebaseAppName]) {
