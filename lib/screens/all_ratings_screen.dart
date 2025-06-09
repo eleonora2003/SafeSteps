@@ -3,16 +3,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AllRatingsScreen extends StatefulWidget {
-  const AllRatingsScreen({super.key});
+  final FirebaseFirestore firestore;
+  final FirebaseAuth auth;
+
+  const AllRatingsScreen({
+    Key? key,
+    required this.firestore,
+    required this.auth,
+  }) : super(key: key);
 
   @override
-  State<AllRatingsScreen> createState() => _AllRatingsScreenState();
+  _AllRatingsScreenState createState() => _AllRatingsScreenState();
 }
 
 class _AllRatingsScreenState extends State<AllRatingsScreen> {
   bool showOnlyMine = false;
   List<QueryDocumentSnapshot> allDocs = [];
-  final currentUser = FirebaseAuth.instance.currentUser;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -21,19 +28,27 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
   }
 
   Future<void> _loadAllRatings() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('street_ratings')
-            .orderBy('timestamp', descending: true)
-            .get();
+    try {
+      final snapshot =
+          await widget.firestore
+              .collection('street_ratings')
+              .orderBy('timestamp', descending: true)
+              .get();
 
-    setState(() {
-      allDocs = snapshot.docs;
-    });
+      setState(() {
+        allDocs = snapshot.docs;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = widget.auth.currentUser;
     final filteredDocs =
         showOnlyMine
             ? allDocs.where((doc) {
@@ -45,57 +60,43 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E7D46),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Vse ocenjene lokacije',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
+        title: const Text('Vse ocenjene lokacije'),
         actions: [
           Row(
             children: [
-              const Text("", style: TextStyle(color: Colors.white)),
+              const Text(""),
               Switch(
                 value: showOnlyMine,
-                onChanged: (val) {
-                  setState(() {
-                    showOnlyMine = val;
-                  });
-                },
-                activeColor: Colors.white,
+                onChanged: (val) => setState(() => showOnlyMine = val),
               ),
             ],
           ),
         ],
       ),
       body:
-          allDocs.isEmpty
+          isLoading
               ? const Center(child: CircularProgressIndicator())
               : filteredDocs.isEmpty
               ? const Center(child: Text('Ni ocenjenih lokacij.'))
-              : ListView.separated(
-                padding: const EdgeInsets.all(16),
+              : ListView.builder(
                 itemCount: filteredDocs.length,
-                separatorBuilder: (context, index) => const Divider(),
                 itemBuilder: (context, index) {
                   final data =
                       filteredDocs[index].data() as Map<String, dynamic>;
-                  final timestamp = data['timestamp'] as Timestamp;
-                  final date = timestamp.toDate();
                   return ListTile(
-                    leading: const Icon(Icons.location_pin, color: Colors.red),
-                    title: Text(
-                      'Ocena: ${data['rating']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      'Koordinate: (${data['latitude']}, ${data['longitude']})\n'
-                      'Komentar: ${data['comment'] ?? ""}\n'
-                      'Datum: $date',
+                    title: Text('Ocena: ${data['rating']}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Koordinate: (${data['latitude']}, ${data['longitude']})',
+                        ),
+                        Text('Komentar: ${data['comment'] ?? ""}'),
+                        if (data['timestamp'] != null)
+                          Text(
+                            'Datum: ${(data['timestamp'] as Timestamp).toDate()}',
+                          ),
+                      ],
                     ),
                   );
                 },

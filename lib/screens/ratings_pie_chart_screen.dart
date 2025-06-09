@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class RatingsPieChartScreen extends StatefulWidget {
-  const RatingsPieChartScreen({Key? key}) : super(key: key);
+  const RatingsPieChartScreen({Key? key, required FirebaseFirestore firestore})
+    : super(key: key);
 
   @override
   State<RatingsPieChartScreen> createState() => _RatingsPieChartScreenState();
@@ -28,14 +29,20 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
     int s = 0, m = 0, d = 0;
 
     for (var doc in snapshot.docs) {
-      final rating = (doc['rating'] as num).toDouble();
+      final data = doc.data();
 
-      if (rating >= 7) {
-        s++;
-      } else if (rating >= 4) {
-        m++;
+      if (data.containsKey('rating')) {
+        final rating = (data['rating'] as num).toDouble();
+
+        if (rating >= 7) {
+          s++;
+        } else if (rating >= 4) {
+          m++;
+        } else {
+          d++;
+        }
       } else {
-        d++;
+        print('⚠️ Dokument ${doc.id} nima polja "rating".');
       }
     }
 
