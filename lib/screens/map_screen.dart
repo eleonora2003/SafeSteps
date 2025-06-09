@@ -12,6 +12,10 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/services.dart';
 import 'maps.dart';
 import 'ratings_pie_chart_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'dart:ui';
+import 'package:google_login_app/main.dart';
 
 class MapScreen extends StatefulWidget {
   final Set<Marker>? testMarkers;
@@ -241,7 +245,7 @@ class MapScreenState extends State<MapScreen> {
               child: Wrap(
                 children: [
                   Text(
-                    "Ocenite lokacijo",
+                    AppLocalizations.of(context)!.rateLocation,
                     style: GoogleFonts.poppins(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -249,7 +253,7 @@ class MapScreenState extends State<MapScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    "Varnostna ocena (1–10):",
+                    AppLocalizations.of(context)!.ratingLabelSlider,
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
                   Slider(
@@ -263,8 +267,8 @@ class MapScreenState extends State<MapScreen> {
                   ),
                   TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
-                      labelText: "Komentar (neobvezno)",
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.commentOptional,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -285,13 +289,17 @@ class MapScreenState extends State<MapScreen> {
                             });
                         await _loadStreetRatings();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Hvala za vašo oceno!')),
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(context)!.thankYou,
+                            ),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1E7D46),
                       ),
-                      child: const Text("Shrani"),
+                      child: Text(AppLocalizations.of(context)!.save),
                     ),
                   ),
                 ],
@@ -357,9 +365,7 @@ class MapScreenState extends State<MapScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(
-              right: 10,
-            ), // 10 px razmik od desnega roba
+            padding: const EdgeInsets.only(right: 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -372,17 +378,19 @@ class MapScreenState extends State<MapScreen> {
                   onSelected: _changeFilter,
                   itemBuilder:
                       (context) => [
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'all',
-                          child: Text('Vse lokacije'),
+                          child: Text(AppLocalizations.of(context)!.filterAll),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'safe',
-                          child: Text('Varne lokacije'),
+                          child: Text(AppLocalizations.of(context)!.filterSafe),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'dangerous',
-                          child: Text('Nevarne lokacije'),
+                          child: Text(
+                            AppLocalizations.of(context)!.filterDangerous,
+                          ),
                         ),
                       ],
                 ),
@@ -414,7 +422,7 @@ class MapScreenState extends State<MapScreen> {
                   onPressed: () => setState(() => _showLegend = !_showLegend),
                 ),
                 SizedBox(
-                  width: 42, // standardna širina gumba
+                  width: 42,
                   child: IconButton(
                     icon: const Icon(
                       Icons.pie_chart,
@@ -434,6 +442,7 @@ class MapScreenState extends State<MapScreen> {
                       );
                     },
                   ),
+
                   // IconButton(
                   //   icon: const Icon(Icons.info_outline, color: Colors.white),
                   //   onPressed: () => setState(() => _showLegend = !_showLegend),
@@ -468,7 +477,7 @@ class MapScreenState extends State<MapScreen> {
                     onLongPress: _openRatingDialog,
                     markers: _markers,
                   ),
-                  // Search bar
+
                   Positioned(
                     top: 20,
                     left: 15,
@@ -488,8 +497,9 @@ class MapScreenState extends State<MapScreen> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              decoration: const InputDecoration(
-                                hintText: 'Vnesite naslov ali ulico',
+                              decoration: InputDecoration(
+                                hintText:
+                                    AppLocalizations.of(context)!.searchHint,
                                 border: InputBorder.none,
                               ),
                             ),
@@ -518,15 +528,17 @@ class MapScreenState extends State<MapScreen> {
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
-                              'Legenda:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              AppLocalizations.of(context)!.legend,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            SizedBox(height: 6),
-                            Text('🟢 Varno (7–10)'),
-                            Text('🟡 Srednje (4–6)'),
-                            Text('🔴 Nevarno (1–3)'),
+                            const SizedBox(height: 6),
+                            Text("🟢 ${AppLocalizations.of(context)!.safe}"),
+                            Text("🟡 ${AppLocalizations.of(context)!.medium}"),
+                            Text("🔴 ${AppLocalizations.of(context)!.danger}"),
                           ],
                         ),
                       ),

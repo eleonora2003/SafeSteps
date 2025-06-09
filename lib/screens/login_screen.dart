@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'auth_service.dart';
 import 'map_screen.dart';
+import 'package:google_login_app/main.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LoginScreen extends StatelessWidget {
   final AuthService _authService;
@@ -14,6 +16,25 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFEFFAF1),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E7D46),
+        actions: [
+          PopupMenuButton<Locale>(
+            icon: const Icon(Icons.language, color: Colors.white),
+            onSelected: (locale) {
+              MyApp.setLocale(context, locale);
+            },
+            itemBuilder:
+                (_) => const [
+                  PopupMenuItem(
+                    value: Locale('sl'),
+                    child: Text('Slovenščina'),
+                  ),
+                  PopupMenuItem(value: Locale('en'), child: Text('English')),
+                ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -21,7 +42,6 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Ikona
                 Container(
                   width: 120,
                   height: 120,
@@ -32,7 +52,7 @@ class LoginScreen extends StatelessWidget {
                       BoxShadow(
                         color: Colors.green.withOpacity(0.2),
                         blurRadius: 10,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -43,8 +63,6 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 30),
-
-                // Naslov
                 Text(
                   'SafeSteps',
                   style: GoogleFonts.poppins(
@@ -54,10 +72,8 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-
-                // Podnaslov
                 Text(
-                  'Vaš zeleni vodič za varno gibanje ponoči.',
+                  AppLocalizations.of(context)!.loginSubtitle,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     color: Colors.grey[700],
@@ -65,12 +81,10 @@ class LoginScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-
-                // Dugme za prijavu
                 ElevatedButton.icon(
                   icon: const Icon(Icons.login, size: 22, color: Colors.white),
                   label: Text(
-                    'Prijava z Google računom',
+                    AppLocalizations.of(context)!.loginButton,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -99,12 +113,9 @@ class LoginScreen extends StatelessWidget {
                     }
                   },
                 ),
-
                 const SizedBox(height: 30),
-
-                // Info tekst
                 Text(
-                  'Vaši podatki so varni.\nUporabljamo Google za preverjanje identitete.',
+                  AppLocalizations.of(context)!.loginInfo,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 13,

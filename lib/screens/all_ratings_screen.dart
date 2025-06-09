@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class AllRatingsScreen extends StatefulWidget {
   final FirebaseFirestore firestore;
@@ -49,6 +50,8 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = widget.auth.currentUser;
+    final loc = AppLocalizations.of(context)!;
+
     final filteredDocs =
         showOnlyMine
             ? allDocs.where((doc) {
@@ -60,11 +63,15 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E7D46),
-        title: const Text('Vse ocenjene lokacije'),
+        title: Text(
+          loc.allRatingsTitle,
+          style: const TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           Row(
             children: [
-              const Text(""),
+              Text(loc.onlyMine, style: const TextStyle(color: Colors.white)),
               Switch(
                 value: showOnlyMine,
                 onChanged: (val) => setState(() => showOnlyMine = val),
@@ -77,24 +84,24 @@ class _AllRatingsScreenState extends State<AllRatingsScreen> {
           isLoading
               ? const Center(child: CircularProgressIndicator())
               : filteredDocs.isEmpty
-              ? const Center(child: Text('Ni ocenjenih lokacij.'))
+              ? Center(child: Text(loc.noRatings))
               : ListView.builder(
                 itemCount: filteredDocs.length,
                 itemBuilder: (context, index) {
                   final data =
                       filteredDocs[index].data() as Map<String, dynamic>;
                   return ListTile(
-                    title: Text('Ocena: ${data['rating']}'),
+                    title: Text('${loc.ratingLabel}: ${data['rating']}'),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Koordinate: (${data['latitude']}, ${data['longitude']})',
+                          '${loc.coordinatesLabel}: (${data['latitude']}, ${data['longitude']})',
                         ),
-                        Text('Komentar: ${data['comment'] ?? ""}'),
+                        Text('${loc.commentLabel}: ${data['comment'] ?? ""}'),
                         if (data['timestamp'] != null)
                           Text(
-                            'Datum: ${(data['timestamp'] as Timestamp).toDate()}',
+                            '${loc.dateLabel}: ${(data['timestamp'] as Timestamp).toDate()}',
                           ),
                       ],
                     ),

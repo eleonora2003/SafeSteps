@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RatingsPieChartScreen extends StatefulWidget {
   const RatingsPieChartScreen({Key? key, required FirebaseFirestore firestore})
@@ -11,9 +12,9 @@ class RatingsPieChartScreen extends StatefulWidget {
 }
 
 class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
-  int safe = 0;
-  int medium = 0;
-  int dangerous = 0;
+  int safeChart = 0;
+  int mediumChart = 0;
+  int dangerousChart = 0;
   bool isLoading = true;
 
   @override
@@ -47,21 +48,25 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
     }
 
     setState(() {
-      safe = s;
-      medium = m;
-      dangerous = d;
+      safeChart = s;
+      mediumChart = m;
+      dangerousChart = d;
       isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final total = safe + medium + dangerous;
+    final total = safeChart + mediumChart + dangerousChart;
+    final local = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E7D46),
-        title: const Text('Graf ocen', style: TextStyle(color: Colors.white)),
+        title: Text(
+          local.chartTitle,
+          style: const TextStyle(color: Colors.white),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       backgroundColor: const Color(0xFFF9FEFB),
@@ -69,15 +74,15 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
           isLoading
               ? const Center(child: CircularProgressIndicator())
               : total == 0
-              ? const Center(child: Text('Ni ocenjenih lokacij.'))
+              ? Center(child: Text(local.noRatings))
               : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
-                    const Text(
-                      'Razmerje varnostnih ocen',
-                      style: TextStyle(
+                    Text(
+                      local.chartSubtitle,
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E7D46),
@@ -93,9 +98,9 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
                           sections: [
                             PieChartSectionData(
                               color: Colors.green,
-                              value: safe.toDouble(),
+                              value: safeChart.toDouble(),
                               title:
-                                  '${((safe / total) * 100).toStringAsFixed(1)}%',
+                                  '${((safeChart / total) * 100).toStringAsFixed(1)}%',
                               titleStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -104,9 +109,9 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
                             ),
                             PieChartSectionData(
                               color: Colors.yellow[700],
-                              value: medium.toDouble(),
+                              value: mediumChart.toDouble(),
                               title:
-                                  '${((medium / total) * 100).toStringAsFixed(1)}%',
+                                  '${((mediumChart / total) * 100).toStringAsFixed(1)}%',
                               titleStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -115,9 +120,9 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
                             ),
                             PieChartSectionData(
                               color: Colors.red,
-                              value: dangerous.toDouble(),
+                              value: dangerousChart.toDouble(),
                               title:
-                                  '${((dangerous / total) * 100).toStringAsFixed(1)}%',
+                                  '${((dangerousChart / total) * 100).toStringAsFixed(1)}%',
                               titleStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -132,9 +137,9 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _legendBox(Colors.green, 'Varne'),
-                        _legendBox(Colors.yellow[700]!, 'Srednje'),
-                        _legendBox(Colors.red, 'Nevarne'),
+                        _legendBox(Colors.green, local.safeChart),
+                        _legendBox(Colors.yellow[700]!, local.mediumChart),
+                        _legendBox(Colors.red, local.dangerChart),
                       ],
                     ),
                   ],

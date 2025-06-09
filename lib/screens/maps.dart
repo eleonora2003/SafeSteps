@@ -5,6 +5,8 @@ import 'package:geocoding/geocoding.dart' as geo;
 import 'directions_model.dart';
 import 'directions_repository.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class MapScreenTask extends StatefulWidget {
   @override
@@ -292,22 +294,24 @@ class _MapScreenState extends State<MapScreenTask> {
   }
 
   Future<void> _handleLongPress(LatLng pos) async {
+    final loc = AppLocalizations.of(context)!;
+
     final action = await showDialog<String>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Izberite akcijo'),
+            title: Text(loc.chooseAction),
             actions: [
               TextButton(
-                child: Text('Dodaj marker'),
+                child: Text(loc.addMarker),
                 onPressed: () => Navigator.pop(context, 'marker'),
               ),
               TextButton(
-                child: Text('Oceni ulico'),
+                child: Text(loc.rateStreet),
                 onPressed: () => Navigator.pop(context, 'rate'),
               ),
               TextButton(
-                child: Text('Prekliči'),
+                child: Text(loc.cancel),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -322,6 +326,8 @@ class _MapScreenState extends State<MapScreenTask> {
   }
 
   Future<void> _showSimpleRatingDialog(LatLng position) async {
+    final loc = AppLocalizations.of(context)!;
+
     setState(() => _isLoading = true);
 
     try {
@@ -331,7 +337,7 @@ class _MapScreenState extends State<MapScreenTask> {
       );
 
       if (placemarks.isEmpty) {
-        throw Exception('Ne najdem ulice na tej lokaciji');
+        throw Exception(loc.streetNotFound);
       }
 
       final place = placemarks.first;
@@ -347,7 +353,7 @@ class _MapScreenState extends State<MapScreenTask> {
           return StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
-                title: Text('Ocenite varnost ulice'),
+                title: Text(loc.rateStreetSafety),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -372,8 +378,8 @@ class _MapScreenState extends State<MapScreenTask> {
                     SizedBox(height: 10),
                     Text(
                       selectedRating != null
-                          ? 'Ocena: $selectedRating/10'
-                          : 'Izberite oceno s pomočjo drsnika',
+                          ? '${loc.ratingLabel}: $selectedRating/10'
+                          : loc.selectRatingWithSlider,
                       style: TextStyle(fontSize: 16),
                     ),
                   ],
@@ -381,14 +387,14 @@ class _MapScreenState extends State<MapScreenTask> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: Text('Prekliči'),
+                    child: Text(loc.cancel),
                   ),
                   ElevatedButton(
                     onPressed:
                         selectedRating != null
                             ? () => Navigator.pop(context, true)
                             : null,
-                    child: Text('Shrani oceno'),
+                    child: Text(loc.saveRating),
                   ),
                 ],
               );
@@ -449,20 +455,21 @@ class _MapScreenState extends State<MapScreenTask> {
   }
 
   Widget _buildCollapsedLegend() {
+    final loc = AppLocalizations.of(context)!;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.info_outline, color: Colors.blue),
         SizedBox(width: 8),
-        Text(
-          'Varnostna lestvica',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text(loc.legendTitle, style: TextStyle(fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   Widget _buildExpandedLegend() {
+    final loc = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -471,7 +478,7 @@ class _MapScreenState extends State<MapScreenTask> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Varnostna lestvica',
+              loc.legendTitle,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             IconButton(
@@ -485,29 +492,26 @@ class _MapScreenState extends State<MapScreenTask> {
           ],
         ),
         SizedBox(height: 8),
-        _buildLegendItem(Colors.green, '7-10: Varna pot'),
-        _buildLegendItem(Colors.yellow, '4-6: Zmerno varna'),
-        _buildLegendItem(Colors.red, '1-3: Nevarna'),
+        _buildLegendItem(Colors.green, loc.legendSafe),
+        _buildLegendItem(Colors.yellow, loc.legendMedium),
+        _buildLegendItem(Colors.red, loc.legendDanger),
         SizedBox(height: 8),
-        Text(
-          'Aktivni kriteriji:',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        Text(loc.activeCriteria, style: TextStyle(fontWeight: FontWeight.bold)),
         SizedBox(height: 4),
         if (_safetyPreference.considerTraffic &&
             _travelMode == TravelMode.driving)
-          _buildLegendItem(Colors.blue, 'Promet 🚦'),
+          _buildLegendItem(Colors.blue, loc.criterionTraffic),
         if (_safetyPreference.considerLighting)
-          _buildLegendItem(Colors.amber, 'Osvetlitev 💡'),
+          _buildLegendItem(Colors.amber, loc.criterionLighting),
         if (_safetyPreference.considerUserRatings)
-          _buildLegendItem(Colors.purple, 'Ocene uporabnikov⭐'),
+          _buildLegendItem(Colors.purple, loc.criterionUserRatings),
         SizedBox(height: 8),
         Text(
-          'Način poti: ${_travelMode == TravelMode.driving ? 'Vozilo 🚗' : 'Hoja 🚶'}',
+          '${loc.travelModeLabel}: ${_travelMode == TravelMode.driving ? loc.byCar : loc.byWalk}',
           style: TextStyle(fontSize: 12),
         ),
         Text(
-          'Tap to close',
+          loc.tapToClose,
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
       ],
@@ -537,6 +541,8 @@ class _MapScreenState extends State<MapScreenTask> {
   Widget _buildSafetyPreferenceDialog() {
     return StatefulBuilder(
       builder: (context, setStateDialog) {
+        final loc = AppLocalizations.of(context)!;
+
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -548,7 +554,7 @@ class _MapScreenState extends State<MapScreenTask> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Varnostne nastavitve',
+                  loc.safetySettings,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -558,7 +564,7 @@ class _MapScreenState extends State<MapScreenTask> {
                 SizedBox(height: 20),
 
                 _buildPreferenceSwitch(
-                  title: 'Upoštevaj osvetlitev',
+                  title: loc.considerLighting,
                   value: _safetyPreference.considerLighting,
                   icon: Icons.lightbulb_outline,
                   onChanged: (value) {
@@ -575,7 +581,7 @@ class _MapScreenState extends State<MapScreenTask> {
 
                 if (_travelMode == TravelMode.driving)
                   _buildPreferenceSwitch(
-                    title: 'Upoštevaj promet',
+                    title: loc.considerTraffic,
                     value: _safetyPreference.considerTraffic,
                     icon: Icons.traffic,
                     onChanged: (value) {
@@ -591,7 +597,7 @@ class _MapScreenState extends State<MapScreenTask> {
                   ),
 
                 _buildPreferenceSwitch(
-                  title: 'Upoštevaj ocene uporabnikov',
+                  title: loc.considerUserRatings,
                   value: _safetyPreference.considerUserRatings,
                   icon: Icons.star_outline,
                   onChanged: (value) {
@@ -608,7 +614,7 @@ class _MapScreenState extends State<MapScreenTask> {
                 Divider(height: 30, thickness: 1),
 
                 Text(
-                  'Način potovanja',
+                  loc.travelMode,
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 SizedBox(height: 12),
@@ -618,7 +624,7 @@ class _MapScreenState extends State<MapScreenTask> {
                     Expanded(
                       child: _buildTravelModeButton(
                         icon: Icons.directions_car,
-                        label: 'Vozilo',
+                        label: loc.byCar,
                         isActive: _travelMode == TravelMode.driving,
                         onTap: () {
                           setStateDialog(() {
@@ -634,7 +640,7 @@ class _MapScreenState extends State<MapScreenTask> {
                     Expanded(
                       child: _buildTravelModeButton(
                         icon: Icons.directions_walk,
-                        label: 'Hoja',
+                        label: loc.byWalk,
                         isActive: _travelMode == TravelMode.walking,
                         onTap: () {
                           setStateDialog(() {
@@ -655,7 +661,7 @@ class _MapScreenState extends State<MapScreenTask> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('PREKLIČI'),
+                      child: Text(loc.cancel),
                     ),
                     SizedBox(width: 8),
                     ElevatedButton(
@@ -670,7 +676,7 @@ class _MapScreenState extends State<MapScreenTask> {
                           }
                         });
                       },
-                      child: Text('SHRANI'),
+                      child: Text(loc.save),
                     ),
                   ],
                 ),
@@ -742,7 +748,7 @@ class _MapScreenState extends State<MapScreenTask> {
     );
   }
 
-  Widget _buildAddressInput() {
+  Widget _buildAddressInput(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(10),
       color: Colors.white.withOpacity(0.9),
@@ -752,28 +758,28 @@ class _MapScreenState extends State<MapScreenTask> {
           Row(
             children: [
               Icon(Icons.location_on, color: Colors.green),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: _originController,
                   decoration: InputDecoration(
-                    hintText: 'Vnesi začetno lokacijo (e.g., Ljubljana)',
+                    hintText: AppLocalizations.of(context)!.enterStartLocation,
                     border: InputBorder.none,
                   ),
                 ),
               ),
             ],
           ),
-          Divider(height: 1),
+          const Divider(height: 1),
           Row(
             children: [
               Icon(Icons.flag, color: Colors.blue),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: _destinationController,
                   decoration: InputDecoration(
-                    hintText: 'Vnesi končno lokacijo (e.g., Maribor)',
+                    hintText: AppLocalizations.of(context)!.enterEndLocation,
                     border: InputBorder.none,
                   ),
                 ),
@@ -893,7 +899,7 @@ class _MapScreenState extends State<MapScreenTask> {
             right: 10,
             child: Column(
               children: [
-                _buildAddressInput(),
+                _buildAddressInput(context),
                 SizedBox(height: 10),
                 _buildRouteDropdown(),
               ],
