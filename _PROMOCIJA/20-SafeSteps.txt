@@ -1,0 +1,31 @@
+20 - SafeSteps
+
+SafeSteps je mobilna aplikacija, razvita v Flutter-ju, namenjena izboljšanju varnosti navigacije ponoči. Integrira Google Maps za storitve, ki temeljijo na lokaciji, in Firebase za avtentikacijo uporabnikov ter shranjevanje podatkov. 
+
+Leto izdelave: 2025
+
+Avtor1: Nastoska Mila
+Avtor2: Stankovska Eleonora
+Avtor3: Krunič Teodora
+
+Vir podatkov: 
+https://console.cloud.google.com
+https://developers.google.com
+
+Koda: https://github.com/eleonora2003/SafeSteps
+
+Kategorizacija: Mobilna aplikacija;
+
+Oznake: Flutter, Dart, Firebase, AndoridStudio, Google Maps API;
+
+Opis projekta v nekaj odstavkih:
+
+SafeSteps je mobilna aplikacija, razvita v Flutterju, ki omogoča varno navigacijo ponoči z uporabo Google Maps in Firebase. Namenjena je uporabnikom, ki želijo prepoznati varne in nevarne lokacije ter načrtovati poti glede na varnostne ocene. Aplikacija vključuje avtentikacijo preko Google Sign-In, interaktivni zemljevid s prikazom varnostnih ocen ulic, možnost pošiljanja SOS sporočil s trenutno lokacijo ter različne filtre za prikaz podatkov.  
+
+Glavne funkcionalnosti vključujejo:  
+- Ocenjevanje varnosti ulic (1–10) s komentarji, shranjenimi v Firestore.  
+- Vizualizacija varnih poti s polylines, ki upoštevajo promet, osvetljenost ali ocene uporabnikov. 
+- Izbira poti glede vozilo ali hoja. 
+- Emergency SOS, ki pošlje lokacijo na vnaprej določen e-naslov.   
+
+Aplikacija je razvita s Flutterjem (3.7.2+) in Dartom, za backend pa uporablja Firebase (Authentication, Firestore) ter Google Maps API. Namenjena je vsem, ki želijo varno potovati ponoči, z intuitivnim vmesnikom in uporabnimi varnostnimi funkcijami.
