@@ -1,9 +1,12 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_login_app/screens/auth_service.dart';
 import 'package:google_login_app/screens/login_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 @GenerateNiceMocks([MockSpec<AuthService>(), MockSpec<User>()])
@@ -20,8 +23,20 @@ void main() {
 
   testWidgets('Login screen displays correctly', (WidgetTester tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: LoginScreen(authService: mockAuthService)),
+      MaterialApp(
+        locale: const Locale('sl'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('sl'), Locale('en')],
+        home: LoginScreen(authService: mockAuthService),
+      ),
     );
+
+    await tester.pumpAndSettle();
 
     expect(find.text('SafeSteps'), findsOneWidget);
     expect(find.text('Prijava z Google računom'), findsOneWidget);

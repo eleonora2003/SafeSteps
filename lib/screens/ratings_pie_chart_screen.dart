@@ -4,7 +4,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RatingsPieChartScreen extends StatefulWidget {
-  const RatingsPieChartScreen({Key? key, required FirebaseFirestore firestore})
+  final FirebaseFirestore firestore;
+  const RatingsPieChartScreen({Key? key, required this.firestore})
     : super(key: key);
 
   @override
@@ -24,8 +25,7 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
   }
 
   Future<void> _fetchRatingsData() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('street_ratings').get();
+    final snapshot = await widget.firestore.collection('street_ratings').get();
 
     int s = 0, m = 0, d = 0;
 
@@ -57,14 +57,14 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final local = AppLocalizations.of(context);
     final total = safeChart + mediumChart + dangerousChart;
-    final local = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E7D46),
         title: Text(
-          local.chartTitle,
+          local?.chartTitle ?? 'Graf ocen',
           style: const TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -74,14 +74,14 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
           isLoading
               ? const Center(child: CircularProgressIndicator())
               : total == 0
-              ? Center(child: Text(local.noRatings))
+              ? Center(child: Text(local?.noRatings ?? 'Ni ocenjenih lokacij.'))
               : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
                     Text(
-                      local.chartSubtitle,
+                      local?.chartSubtitle ?? 'Porazdelitev ocen',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -137,9 +137,12 @@ class _RatingsPieChartScreenState extends State<RatingsPieChartScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _legendBox(Colors.green, local.safeChart),
-                        _legendBox(Colors.yellow[700]!, local.mediumChart),
-                        _legendBox(Colors.red, local.dangerChart),
+                        _legendBox(Colors.green, local?.safeChart ?? 'Varno'),
+                        _legendBox(
+                          Colors.yellow[700]!,
+                          local?.mediumChart ?? 'Srednje',
+                        ),
+                        _legendBox(Colors.red, local?.dangerChart ?? 'Nevarno'),
                       ],
                     ),
                   ],
