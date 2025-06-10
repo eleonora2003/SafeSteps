@@ -13,12 +13,12 @@ dependencies:
   # Lokalizacija
   flutter_localizations:
     sdk: flutter
-  intl: ^0.19.0
+  intl: 0.20.2
 
   # Ikone in izgled
   cupertino_icons: ^1.0.8
   google_fonts: ^6.1.0
-
+  animate_do: ^3.0.2
   # Firebase
   firebase_core_platform_interface: ^5.0.0
   firebase_core: ^3.13.0
@@ -40,6 +40,7 @@ dependencies:
   url_launcher: ^6.2.5
   fl_chart: ^0.63.0
   collection: ^1.18.0
+  lib: ^0.0.3
 
 dev_dependencies:
   flutter_test:
