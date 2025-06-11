@@ -6,7 +6,7 @@ import 'package:mockito/mockito.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:google_login_app/l10n/app_localizations.dart';
 import 'mocks.mocks.dart';
 
 void main() {
