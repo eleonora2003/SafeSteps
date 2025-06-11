@@ -2,13 +2,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_login_app/l10n/app_localizations.dart';
 import 'package:google_login_app/main.dart';
 import 'package:google_login_app/screens/login_screen.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'firebase_mock.dart';
 import 'widget_test.mocks.dart';
+import 'package:google_login_app/l10n/app_localizations.dart';
 
 @GenerateNiceMocks([MockSpec<LoginScreen>()])
 void main() {

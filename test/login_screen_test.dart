@@ -5,8 +5,8 @@ import 'package:google_login_app/screens/auth_service.dart';
 import 'package:google_login_app/screens/login_screen.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_login_app/l10n/app_localizations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 @GenerateNiceMocks([MockSpec<AuthService>(), MockSpec<User>()])
 import 'login_screen_test.mocks.dart';
