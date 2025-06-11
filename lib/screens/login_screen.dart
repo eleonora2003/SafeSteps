@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'auth_service.dart';
 import 'map_screen.dart';
 import 'package:google_login_app/main.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 
 class LoginScreen extends StatelessWidget {
   final AuthService _authService;

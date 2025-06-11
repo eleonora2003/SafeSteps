@@ -6,7 +6,7 @@ import 'directions_model.dart';
 import 'directions_repository.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 
 class MapScreenTask extends StatefulWidget {
   @override

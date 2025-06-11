@@ -13,7 +13,7 @@ import 'package:flutter/services.dart';
 import 'maps.dart';
 import 'ratings_pie_chart_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 import 'dart:ui';
 import 'package:google_login_app/main.dart';
 
