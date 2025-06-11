@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:google_login_app/screens/all_ratings_screen.dart';
-import 'package:google_login_app/l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 @GenerateMocks(
   [FirebaseAuth, User, FirebaseFirestore],
