@@ -37,7 +37,8 @@ SafeSteps je mobilna aplikacija, razvita v Flutterju, namenjena izboljšanju var
 - Prikaz varnosti preko polylines s barvami, glede ocene uporabnika.
 ### 14. ↔️ Izbira prikaz poti med vozilo in hoja
 - Možnost prikaz poti med vozilo in pa hoja.
-
+### 15. 🌐 Dvojezičnost mobilne aplikacije
+- Možnost izbira med dva jezika (slovenščina in angleščina).
 
 ## 🛠️ Tehnološki sklad 
 ---
@@ -76,6 +77,7 @@ SafeSteps je mobilna aplikacija, razvita v Flutterju, namenjena izboljšanju var
 - Zaženite naslednji ukaz za namestitev vseh zahtevanih paketov iz pubspec.yaml:
    **flutter clean**
    **flutter pub get** 
+   **flutter gen-10ln**
 
 ### 4. Nastavi Firebase:
 
@@ -96,6 +98,13 @@ SafeSteps je mobilna aplikacija, razvita v Flutterju, namenjena izboljšanju var
 
   **flutter run** 
 
+### 7. Unit-testove 
+
+- S naslednji ukaz zaženite testove:
+
+   **flutter pub run build_runner build --delete-conflicting-outputs**
+
+   **flutter test**
 
 ### 👥 Avtorji in vloge 
 ---
