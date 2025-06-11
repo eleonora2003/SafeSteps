@@ -346,6 +346,7 @@ class _MapScreenState extends State<MapScreenTask> {
       );
 
       int? selectedRating;
+      String comment = '';
 
       final result = await showDialog<bool>(
         context: context,
@@ -382,6 +383,18 @@ class _MapScreenState extends State<MapScreenTask> {
                           : loc.selectRatingWithSlider,
                       style: TextStyle(fontSize: 16),
                     ),
+                    SizedBox(height: 20),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: loc.commentLabel,
+                        hintText: loc.commentHint,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      onChanged: (value) {
+                        comment = value.trim();
+                      },
+                    ),
                   ],
                 ),
                 actions: [
@@ -407,6 +420,7 @@ class _MapScreenState extends State<MapScreenTask> {
         await DirectionsRepository.saveStreetRating(
           streetName,
           selectedRating!,
+          comment: comment.isNotEmpty ? comment : null,
         );
       }
     } catch (e) {

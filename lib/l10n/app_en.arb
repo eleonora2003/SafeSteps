@@ -61,5 +61,7 @@
 "ratingLabel": "Rating",
 "selectRatingWithSlider": "Select a rating using the slider",
 "saveRating": "Save rating",
-"error": "Error"
+"error": "Error",
+"commentHint": "Enter a comment about street safety",
+"ratingSaved": "Rating saved successfully"
 }

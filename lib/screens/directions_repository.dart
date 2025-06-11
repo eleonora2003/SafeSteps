@@ -302,7 +302,11 @@ class DirectionsRepository {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _ratingsCollection = 'ratings';
 
-  static Future<void> saveStreetRating(String fullStreet, int newRating) async {
+  static Future<void> saveStreetRating(
+    String fullStreet,
+    int newRating, {
+    String? comment,
+  }) async {
     try {
       final streetName = extractPureStreetName(fullStreet);
       final docRef = _firestore.collection(_ratingsCollection).doc(streetName);
@@ -326,6 +330,7 @@ class DirectionsRepository {
             'totalRating': newTotal,
             'lastUpdated': FieldValue.serverTimestamp(),
             'streetName': streetName,
+            if (comment != null) 'latestComment': comment,
           });
         } else {
           transaction.set(docRef, {
@@ -335,6 +340,7 @@ class DirectionsRepository {
             'streetName': streetName,
             'createdAt': FieldValue.serverTimestamp(),
             'lastUpdated': FieldValue.serverTimestamp(),
+            if (comment != null) 'latestComment': comment,
           });
         }
       });

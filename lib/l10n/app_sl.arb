@@ -61,5 +61,7 @@
 "ratingLabel": "Ocena",
 "selectRatingWithSlider": "Izberite oceno s pomočjo drsnika",
 "saveRating": "Shrani oceno",
-"error": "Napaka"
+"error": "Napaka",
+"commentHint": "Vnesite komentar o varnosti ulice",
+"ratingSaved": "Ocena uspešno shranjena"
 }
